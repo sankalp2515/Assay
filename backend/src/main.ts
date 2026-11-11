@@ -7,6 +7,7 @@ import { maintain } from "./core/maintenance.js";
 import { PayPalSandbox } from "./adapters/paypal.js";
 import { GeminiInvestigator } from "./adapters/gemini.js";
 import { configuredInvestigator } from "./adapters/models.js";
+import { Replicate } from "./adapters/replicate.js";
 import { Runway } from "./adapters/runway.js";
 import { services, type Service } from "./domain/contracts.js";
 import type { Context } from "./core/context.js";
@@ -67,11 +68,13 @@ if (name === "payments")
       process.env.PAYPAL_CANCEL_URL ?? "http://localhost:4100/v1/paypal/cancel",
   });
 if (name === "investigation") ctx.model = configuredInvestigator(process.env);
-if (name === "provider")
+if (name === "provider") {
   ctx.provider = new Runway(
     process.env.RUNWAY_API_KEY ?? "",
     process.env.RUNWAY_MODEL ?? "gen4.5",
   );
+  ctx.providers = { replicate: new Replicate(process.env.REPLICATE_API_TOKEN ?? "") };
+}
 const app = await createApp(ctx);
 let busy = false;
 let stopping = false;

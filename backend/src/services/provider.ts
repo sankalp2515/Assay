@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import type { Context } from "../core/context.js";
 import { endpoint } from "../core/http.js";
-import { requireThat, unavailable } from "../core/errors.js";
+import { requireThat } from "../core/errors.js";
+import { TASK_SOURCES, outputHosts, providerFor, type TaskSource } from "../domain/sources.js";
 import { id, uuid, now, type Json } from "../domain/contracts.js";
 import { z } from "zod";
 export function providerRoutes(app: FastifyInstance, ctx: Context) {
@@ -18,15 +19,38 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
         unit_id: string;
         prompt: string;
         provider_task_id?: string;
+        source?: TaskSource;
+        output_url?: string;
       };
       const replay = await ctx.db.commandResult(a.tenant, "attempt", key, b);
       if (replay) return replay;
+      const reported = b.source === "reported";
       requireThat(
-        ctx.provider?.available,
-        "integration_unavailable",
-        "Video provider unavailable",
-        503,
+        !reported || (!!b.provider_task_id && !!b.output_url),
+        "reported_task_incomplete",
+        "A reported task needs its provider task ID and output URL",
       );
+      requireThat(
+        !!b.output_url === reported,
+        "output_url_not_allowed",
+        "Only reported tasks carry an output URL; other sources are looked up",
+      );
+      if (reported) {
+        let host = "";
+        try {
+          const u = new URL(b.output_url!);
+          if (!u.username && !u.password && (!u.port || u.port === "443"))
+            host = u.hostname.toLowerCase();
+        } catch {
+          host = "";
+        }
+        requireThat(
+          outputHosts("reported").includes(host),
+          "unsafe_output_origin",
+          "Output host is not in REPORTED_OUTPUT_HOSTS",
+          422,
+        );
+      } else providerFor(ctx, b.source);
       const contract = await ctx.call(
         "commerce",
         "/internal/batches/" + b.batch_id,
@@ -69,9 +93,23 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
         unit_id: b.unit_id,
         state: "RESERVED",
         created_at: now(),
+        source: b.source ?? "runway",
         ...(b.provider_task_id ? { provider_task_id: b.provider_task_id } : {}),
       });
       if (record.state !== "RESERVED") return record;
+      if (reported)
+        return ctx.db.mutate(a.tenant, "attempt", record.id as string, async (old) => ({
+          ...old,
+          state: "SUCCEEDED",
+          provider_task_id: b.provider_task_id,
+          resource: {
+            id: b.provider_task_id!,
+            status: "SUCCEEDED",
+            output: [b.output_url!],
+            provider: "reported",
+            evidence: "merchant_reported",
+          },
+        }));
       await ctx.db.mutate(
         a.tenant,
         "attempt",
@@ -86,9 +124,10 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
         },
       );
       try {
+        const source = providerFor(ctx, b.source);
         const response = b.provider_task_id
-          ? await ctx.provider.lookup(b.provider_task_id)
-          : await ctx.provider.submit(b.prompt);
+          ? await source.lookup(b.provider_task_id)
+          : await source.submit(b.prompt);
         requireThat(
           typeof response.id === "string",
           "provider_response_invalid",
@@ -125,6 +164,8 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
       unit_id: uuid,
       prompt: z.string().min(5).max(2000),
       provider_task_id: z.string().min(1).max(100).optional(),
+      source: z.enum(TASK_SOURCES).optional(),
+      output_url: z.string().regex(/^https:\/\/\S+$/).max(2000).optional(),
     }),
   );
   endpoint(
@@ -152,9 +193,12 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
         uuid.parse(p.attempt),
       );
       requireThat(attempt, "not_found", "Attempt not found", 404);
-      if (!attempt.provider_task_id) return attempt;
-      if (!ctx.provider?.available) throw unavailable("Runway");
-      const resource = await ctx.provider.lookup(
+      if (!attempt.provider_task_id || attempt.source === "reported")
+        return attempt;
+      const resource = await providerFor(
+        ctx,
+        attempt.source as TaskSource | undefined,
+      ).lookup(
         String(attempt.provider_task_id),
       );
       return ctx.db.mutate(

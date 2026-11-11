@@ -29,6 +29,6 @@ box(760,655,345,120,'Gemini investigator',['Real model + bounded tool selection'
 box(1125,655,345,120,'PayPal Sandbox',['Authorize → final capture OR void','Original-capture refund + read-back'],color='#c47736',bg='#fff8ef')
 for x in xs:out.append(f'<path d="M{x+345} 430 H{x+354} V633 H{x+172} V652" fill="none" stroke="#65809b" stroke-width="1.6" marker-end="url(#arrow)"/>')
 box(30,815,1440,110,'Required proof for normal case closure',['Current cited AI assessment + valid buyer-access evidence + exact approval + confirmed PayPal outcome','AI outage pauses new normal completion. Preservation, existing customer access and safe financial release continue.'],color='#1a8b77',bg='#edf9f4')
-text(30,961,'Verified: 45 local tests · native PostgreSQL · 11 healthy containers · real Sandbox authorize / $40 capture / refund / void · real Gemini',17,'#183b59','700')
+text(30,961,'Verified: 49 local tests · native PostgreSQL · 11 healthy containers · real Sandbox authorize / $40 capture / refund / void · real Gemini',17,'#183b59','700')
 text(30,989,'Not yet: signed PayPal webhook received · real provider output in production · cloud deployment · external OIDC',15)
 out.append('</svg>');(p/'architecture.svg').write_text('\n'.join(out),encoding='utf-8');print('Wrote current service diagram')

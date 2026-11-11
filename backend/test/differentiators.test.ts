@@ -118,11 +118,18 @@ test("recovery story: buyer message, restored original, $40 capture, signed stat
       assessment_id: investigated.json<Json>().id,
     });
     assert.equal(restored.statusCode, 200, restored.body);
+    // The batch itself says which clips were restored, so a reload never loses it.
+    const view = (await h.request("/v1/batches/" + b.id)).json<Json>();
+    assert.deepEqual(view.recovered_unit_ids, [lost[0]!.unit_id]);
 
     const s = await h.settle(b);
     assert.equal(s.permit.amount_minor, 4000);
     assert.equal((await s.execute()).state, "CONFIRMED");
     assert.equal(h.paypal.captures, 1);
+    // The reading the merchant approved on is final after settlement, not "out of date".
+    const reading2 = (await h.request("/v1/batches/" + b.id + "/investigation")).json<Json>();
+    assert.equal(reading2.used_for_settlement, true);
+    assert.equal(reading2.current, true);
     assert.equal(h.paypal.captureDetails?.invoice_id, s.permit.id);
     assert.match(
       String(h.paypal.captureDetails?.note_to_payer),

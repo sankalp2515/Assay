@@ -72,9 +72,13 @@ Open the printed case URL. You get the merchant investigation workspace, the buy
 
 | Other entries | Their approach | This product |
 |---|---|---|
-| OfferSDK | Broad PayPal billing platform: pricing, subscriptions, entitlements, metering, MCP | Recovers output that already exists before anyone pays again, then settles per clip against proof of delivery |
+| OfferSDK | Decides what a user may do *before* the work: plans, entitlements, offers, PayPal subscriptions, agentic cancel flows | Proves what the buyer actually got *after* the work: recovers output that already exists, then settles per clip against proof of delivery. The two are complementary ([comparison](product/REAL_USER_READINESS.md)) |
 | Pay-on-proof and escrow entries | AI judges the work and PayPal releases funds | AI never judges or releases money. It reads evidence and the buyer's words; rules decide; PayPal moves an exact amount once |
 | "Refund failed renders" | Refund after the fact | Never charges what wasn't delivered, so there's nothing to refund |
+
+## Plug it into your app
+
+Keep your provider and your generation code. Register each provider task as you submit it, and Assay archives the output when it finishes. It works with Runway or Replicate (looked up with your key) or any other provider (you report the output URL from a host you approved in advance). Signed webhooks tell your app when a clip was recovered and when PayPal settled. Three steps: [INTEGRATE.md](backend/docs/INTEGRATE.md). What a production merchant still needs: [REAL_USER_READINESS.md](product/REAL_USER_READINESS.md).
 
 ## Evidence
 
@@ -85,10 +89,10 @@ Each line says what kind of evidence it is.
 | $50 authorization → $40 final capture, $5 refund on the original capture, separate void | `backend/evidence/paypal-lifecycle.json` | Real PayPal Sandbox, adapter level |
 | Five services, real Gemini, real Sandbox approval, one confirmed $40 capture | `backend/evidence/service-sandbox-workflow.json` | Real Gemini and Sandbox; fixture media |
 | A real AI-generated clip recovered and delivered byte-identical | `backend/evidence/generated-video-fixture-paypal.json` | Real LTX output; fixture payment |
-| AI reading of buyer messages: Gemini 18/30 vs keyword baseline 15/30 (18/23 vs 11/23 on cases Gemini answered; 7 lost to Google 503s) | `backend/evidence/claim-reading-evaluation.json` | Real Gemini; 30 authored held-out messages, single run |
+| AI reading of buyer messages: Gemini 25/30 vs keyword baseline 15/30, all 30 answered, 0 invalid readings. An earlier run scored 18/30 because 7 cases hit Google outages | `backend/evidence/claim-reading-evaluation.json` | Real Gemini; 30 authored held-out messages; second single run, no variance estimate |
 | AI action choice on structured facts vs rules | `backend/evidence/investigation-evaluation.json` | Real Gemini 17/20, rules 20/20. This is why AI does not decide actions |
 | Concurrency, RLS, money bounds, encrypted restore | `backend/evidence/native-postgres.json` | Native PostgreSQL, local |
-| Full local gate: 45/45 tests, native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
+| Full local gate: 49/49 tests (including task intake, auto-archive and signed webhooks), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
 | Microservices in Docker: 11 healthy containers, signed cross-service calls, real Gemini via the Investigation container | `backend/evidence/container-smoke.json` | Local Docker; no PayPal order or generation |
 
 ## Architecture

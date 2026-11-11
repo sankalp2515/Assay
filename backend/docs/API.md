@@ -81,3 +81,18 @@ Financial projection includes refundable_units (unit_id, amount_minor), selected
 - estimated re-render cost avoided, using the merchant-configured `PROVIDER_RERENDER_COST_MINOR` (an estimate, not a measured price)
 - amounts authorized, charged and never taken across settled batches
 - buyer-message outcome counts
+
+## Merchant task intake, recovered clips and approval window (11 November)
+
+- `POST /v1/batches/{id}/tasks` registers a provider task against a unit. `/attempts` is the older name and stays. `source` is one of the following:
+  - `runway` (default) or `replicate`: Assay looks the task up with the merchant's key. Assay does no Replicate generation.
+  - `reported`: requires `output_url`, whose exact host must be in `REPORTED_OUTPUT_HOSTS`. The attempt is stored as `SUCCEEDED` with `evidence: merchant_reported`. Billing still needs a stored, decoded file and a verified buyer route.
+  - `output_url` on a looked-up source is refused with `output_url_not_allowed`.
+- `GET /v1/batches/{id}` now includes `recovered` and `recovered_unit_ids` from the recovery records, so clients don't keep restore state themselves.
+- `GET /v1/batches/{id}/investigation` returns `used_for_settlement: true` and `current: true` once the batch was settled on that reading. The capture or void changes the records, but the reading stays final rather than becoming out of date.
+- `APPROVAL_WINDOW_SECONDS` (30–600, default 45) sets how long an exact-amount proposal stays approvable.
+
+- Registering a task also enqueues `/internal/tasks/archive` in the commerce outbox, in the same transaction. While the task runs, the job answers 503 and is retried with backoff (12 attempts, about 8 minutes). When it succeeds, the output is archived with the fixed key `archive-<attempt>`, so it is stored once. Failed or cancelled tasks end the watch. Set `AUTO_ARCHIVE_TASKS=false` to turn it off.
+- Merchant webhooks: `clip.recovered`, `batch.settled` and `batch.voided` are written to the commerce outbox in the same transaction as the state change. They are signed with HMAC-SHA256 (`Assay-Signature: t=…,v1=…`) and retried on 5xx or 429. They are only emitted when `MERCHANT_WEBHOOK_URL` and a 32+ character `MERCHANT_WEBHOOK_SECRET` are set.
+
+Integration walkthrough: [INTEGRATE.md](INTEGRATE.md).

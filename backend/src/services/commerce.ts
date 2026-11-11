@@ -3,7 +3,8 @@ import { z } from "zod";
 import type { Context } from "../core/context.js";
 import { endpoint } from "../core/http.js";
 import { token } from "../core/auth.js";
-import { requireThat } from "../core/errors.js";
+import { emitEvent } from "../core/webhooks.js";
+import { Problem, requireThat } from "../core/errors.js";
 import {
   batchInput,
   eligibleAmount,
@@ -17,6 +18,12 @@ import {
   type Permit,
   type Evidence,
 } from "../domain/contracts.js";
+// Exact-amount approvals expire quickly so a stale review can't be approved. 45 seconds by
+// default; a demo or slower operator team may set 30-600 seconds.
+function approvalWindowMs() {
+  const s = Number(process.env.APPROVAL_WINDOW_SECONDS ?? 45);
+  return Math.min(600, Math.max(30, Number.isFinite(s) ? s : 45)) * 1000;
+}
 export function commerceRoutes(app: FastifyInstance, ctx: Context) {
   endpoint(
     app,
@@ -194,7 +201,18 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         404,
       );
       const { prompt, ...visible } = b;
-      return visible;
+      const recovered = (
+        await ctx.db.list<Json>(a.tenant, "recovery", b.id)
+      ).map((r) => ({
+        unit_id: String(r.unit_id),
+        artifact_id: String(r.artifact_id),
+        recovered_at: String(r.recovered_at),
+      }));
+      return {
+        ...visible,
+        recovered,
+        recovered_unit_ids: recovered.map((r) => r.unit_id),
+      };
     },
   );
   endpoint(
@@ -365,49 +383,70 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
       payment_confirmed: false,
     }),
   );
-  endpoint(
-    app,
-    ctx,
-    "POST",
-    "/v1/batches/:batch/attempts",
-    ["operator"],
-    ["operator"],
-    async (a, raw, p, key) => {
-      const input = raw as { unit_id: string; provider_task_id?: string };
-      const b = await batch(a.tenant, p.batch!);
+  // Register a generation task against a unit. `/tasks` is the integration path for an
+  // AI-video app that keeps its own provider: Runway or Replicate tasks are looked up with
+  // the merchant's key; any other provider is "reported" with an output URL on a
+  // pre-approved host. `/attempts` is the original name and stays for compatibility.
+  const registerTask = async (
+    a: { tenant: string },
+    raw: unknown,
+    p: Record<string, string | undefined>,
+    key: string,
+  ) => {
+    const input = raw as {
+      unit_id: string;
+      provider_task_id?: string;
+      source?: string;
+      output_url?: string;
+    };
+    const b = await batch(a.tenant, p.batch!);
+    requireThat(
+      b.units.some((u) => u.id === input.unit_id) &&
+        ["AUTHORIZED", "RUNNING"].includes(b.state) &&
+        Date.parse(b.deadline) > ctx.now(),
+      "batch_not_running",
+      "Authorized current batch and known unit required",
+    );
+    const response = await ctx.call(
+      "provider",
+      "/internal/attempts",
+      a.tenant,
+      { batch_id: b.id, prompt: b.prompt, ...input },
+      key,
+    );
+    await ctx.db.mutate<Batch>(a.tenant, "batch", b.id, async (old, q) => {
       requireThat(
-        b.units.some((u) => u.id === input.unit_id) &&
-          ["AUTHORIZED", "RUNNING"].includes(b.state) &&
-          Date.parse(b.deadline) > ctx.now(),
-        "batch_not_running",
-        "Authorized current batch and known unit required",
+        ["AUTHORIZED", "RUNNING"].includes(old.state),
+        "state_changed",
+        "Batch cannot accept attempt result",
       );
-      const response = await ctx.call(
-        "provider",
-        "/internal/attempts",
-        a.tenant,
-        { batch_id: b.id, prompt: b.prompt, ...input },
-        key,
-      );
-      await ctx.db.mutate<Batch>(a.tenant, "batch", b.id, async (old) => {
-        requireThat(
-          ["AUTHORIZED", "RUNNING"].includes(old.state),
-          "state_changed",
-          "Batch cannot accept attempt result",
-        );
-        return { ...old, state: "RUNNING", version: old.version + 1 };
-      });
-      return {
-        id: response.id,
-        state: response.state,
-        unit_id: response.unit_id,
-      };
-    },
-    z.strictObject({
-      unit_id: uuid,
-      provider_task_id: z.string().min(1).max(100).optional(),
-    }),
-  );
+      // Watch the task and archive its output the moment it finishes, before the
+      // provider deletes it (Replicate: one hour). Same transaction as the registration.
+      if (
+        process.env.AUTO_ARCHIVE_TASKS !== "false" &&
+        !["FAILED", "CANCELLED"].includes(String(response.state))
+      )
+        await ctx.db.enqueue(q, a.tenant, "commerce", "/internal/tasks/archive", {
+          batch_id: b.id,
+          attempt_id: String(response.id),
+        });
+      return { ...old, state: "RUNNING", version: old.version + 1 };
+    });
+    return {
+      id: response.id,
+      state: response.state,
+      unit_id: response.unit_id,
+      source: response.source ?? "runway",
+    };
+  };
+  const taskSchema = z.strictObject({
+    unit_id: uuid,
+    provider_task_id: z.string().min(1).max(100).optional(),
+    source: z.enum(["runway", "replicate", "reported"]).optional(),
+    output_url: z.string().regex(/^https:\/\/\S+$/).max(2000).optional(),
+  });
+  for (const path of ["/v1/batches/:batch/attempts", "/v1/batches/:batch/tasks"])
+    endpoint(app, ctx, "POST", path, ["operator"], ["operator"], registerTask, taskSchema);
   endpoint(
     app,
     ctx,
@@ -526,9 +565,18 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         "/internal/assessments/" + b.assessment_id,
         a.tenant,
       );
+      // After settlement the records change because of the settlement itself (capture or
+      // void). The reading the merchant approved on is then final, not out of date.
+      const permit = b.proposal_id
+        ? await ctx.db.get<Permit>(a.tenant, "permit", b.proposal_id)
+        : undefined;
+      const settled =
+        ["CLAIMED", "CLOSED", "RECONCILING"].includes(b.state) &&
+        permit?.assessment_id === b.assessment_id;
       return {
         ...record,
-        current: b.assessment_hash === (await snapshot(a.tenant, b)).hash,
+        current: settled || b.assessment_hash === (await snapshot(a.tenant, b)).hash,
+        used_for_settlement: settled,
       };
     },
   );
@@ -566,7 +614,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
       await ctx.db.mutate<Batch>(a.tenant, "batch", b.id, async (old, q) => {
         // One recovery record per artifact: the original was restored instead of re-rendered.
         const recoveryId = stableId({ artifact: input.artifact_id });
-        if (!(await ctx.db.getIn(q, a.tenant, "recovery", recoveryId, true)))
+        if (!(await ctx.db.getIn(q, a.tenant, "recovery", recoveryId, true))) {
           await ctx.db.put(q, a.tenant, "recovery", recoveryId, {
             id: recoveryId,
             batch_id: b.id,
@@ -580,6 +628,13 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
             ),
             recovered_at: now(),
           });
+          await emitEvent(ctx, q, a.tenant, "clip.recovered", recoveryId, {
+            batch_id: b.id,
+            unit_id: artifact.unit_id,
+            artifact_id: input.artifact_id,
+            rerendered: false,
+          });
+        }
         return {
           ...old,
           state: "RUNNING",
@@ -654,7 +709,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         snapshot_hash: current.hash,
         verification_ids: [...unique.values()].map((r) => String(r.id)),
         action: eligible.length ? "CAPTURE" : "VOID",
-        expires_at: new Date(ctx.now() + 45_000).toISOString(),
+        expires_at: new Date(ctx.now() + approvalWindowMs()).toISOString(),
         state: "PROPOSED",
         approval_actor: "",
       };
@@ -1034,6 +1089,43 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     },
     z.strictObject({ operation_id: uuid }),
   );
+  // Outbox-driven watcher. A still-running task answers 503 so the outbox retries it with
+  // backoff (about eight minutes in total); anything later is covered by investigation and
+  // recovery. A fixed idempotency key makes repeated deliveries archive the file once.
+  endpoint(
+    app,
+    ctx,
+    "POST",
+    "/internal/tasks/archive",
+    ["commerce"],
+    undefined,
+    async (a, raw) => {
+      const input = raw as { batch_id: string; attempt_id: string };
+      const b = await batch(a.tenant, input.batch_id);
+      if (!["AUTHORIZED", "RUNNING"].includes(b.state))
+        return { archived: false, reason: "batch_not_running" };
+      const attempt = await ctx.call(
+        "provider",
+        "/internal/attempts/" + input.attempt_id,
+        a.tenant,
+      );
+      requireThat(attempt.batch_id === b.id, "not_found", "Attempt not found", 404);
+      const state = String(attempt.state);
+      if (["FAILED", "CANCELLED"].includes(state))
+        return { archived: false, reason: "task_" + state.toLowerCase() };
+      if (state !== "SUCCEEDED")
+        throw new Problem(503, "task_running", "Task has not finished yet");
+      const artifact = await ctx.call(
+        "delivery",
+        "/internal/artifacts",
+        a.tenant,
+        { batch_id: b.id, attempt_id: input.attempt_id },
+        "archive-" + input.attempt_id,
+      );
+      return { archived: artifact.state === "STORED", artifact_id: artifact.id, state: artifact.state };
+    },
+    z.strictObject({ batch_id: uuid, attempt_id: uuid }),
+  );
   endpoint(
     app,
     ctx,
@@ -1067,12 +1159,38 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         a.tenant,
         "batch",
         b.batch_id,
-        async (old) => ({
-          ...old,
-          state: unsettled ? "RECONCILING" : "CLOSED",
-          payment_id: b.operation_id,
-          version: old.version + 1,
-        }),
+        async (old, q) => {
+          const state = unsettled ? "RECONCILING" : "CLOSED";
+          if (state === "CLOSED" && old.state !== "CLOSED") {
+            const capture = op.kind === "CAPTURE";
+            const permit = old.proposal_id
+              ? await ctx.db.getIn<Permit>(q, a.tenant, "permit", old.proposal_id)
+              : undefined;
+            await emitEvent(
+              ctx,
+              q,
+              a.tenant,
+              capture ? "batch.settled" : "batch.voided",
+              b.operation_id,
+              {
+                batch_id: b.batch_id,
+                operation_id: b.operation_id,
+                action: String(op.kind),
+                amount_minor: capture ? Number(op.amount_minor ?? 0) : 0,
+                currency: String(op.currency ?? "USD"),
+                clips_charged: capture ? (permit?.unit_ids.length ?? 0) : 0,
+                clips_total: old.units.length,
+                statement_path: "/v1/batches/" + b.batch_id + "/statement",
+              },
+            );
+          }
+          return {
+            ...old,
+            state,
+            payment_id: b.operation_id,
+            version: old.version + 1,
+          };
+        },
       );
     },
     z.strictObject({ batch_id: uuid, operation_id: uuid }),

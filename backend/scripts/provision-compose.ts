@@ -85,6 +85,12 @@ if (!existing || process.argv.includes("--sync-integrations")) {
     "RUNWAY_API_KEY",
     "RUNWAY_MODEL",
     "RUNWAY_ALLOWED_HOSTS",
+    "REPLICATE_API_TOKEN",
+    "REPLICATE_ALLOWED_HOSTS",
+    "REPORTED_OUTPUT_HOSTS",
+    "APPROVAL_WINDOW_SECONDS",
+    "MERCHANT_WEBHOOK_URL",
+    "MERCHANT_WEBHOOK_SECRET",
   ])
     if (process.env[key] !== undefined) env[key] = process.env[key]!;
 

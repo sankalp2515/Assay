@@ -51,6 +51,7 @@ export interface Model {
 }
 export interface VideoProvider {
   available: boolean;
+  name?: string;
   lookup(id: string): Promise<Json>;
   submit(prompt: string): Promise<Json>;
 }
@@ -69,6 +70,8 @@ export interface Context {
   paypal?: PayPal;
   model?: Model;
   provider?: VideoProvider;
+  // Additional lookup adapters by name (e.g. replicate). `provider` stays the default (Runway).
+  providers?: Record<string, VideoProvider>;
   artifactDir: string;
   allowPaid: boolean;
   maxAttempts: number;

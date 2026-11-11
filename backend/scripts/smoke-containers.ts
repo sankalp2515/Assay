@@ -73,6 +73,25 @@ must(
   { status: support.status, reading_state: reading.state, model: reading.model ?? null },
 );
 
+const view = await call("/v1/batches/" + id, "operator");
+must(
+  "batch view carries recovered clips",
+  view.status === 200 && Array.isArray(view.body.recovered_unit_ids),
+  { status: view.status, recovered_unit_ids: view.body.recovered_unit_ids },
+);
+// The batch is not authorized, and no reported host is configured: both must refuse.
+const units = (created.body.units ?? []) as { id: string }[];
+const reported = await call("/v1/batches/" + id + "/tasks", "operator", {
+  unit_id: units[0]?.id,
+  source: "reported",
+  provider_task_id: "smoke-task",
+  output_url: "https://169.254.169.254/latest/meta-data",
+});
+must("task intake refuses unauthorized batch or unapproved host", [409, 422].includes(reported.status), {
+  status: reported.status,
+  code: reported.body.code,
+});
+
 const keys = await fetch(base + "/v1/statements/keys");
 must("public statement key published", keys.ok && ((await keys.json()) as { keys: unknown[] }).keys.length > 0);
 const anonymous = await fetch(base + "/v1/batches");

@@ -116,6 +116,10 @@ services:
       SERVICE_NAME: commerce
       PORT: "4100"
       PROVIDER_RERENDER_COST_MINOR: ${PROVIDER_RERENDER_COST_MINOR:-0}
+      APPROVAL_WINDOW_SECONDS: ${APPROVAL_WINDOW_SECONDS:-45}
+      AUTO_ARCHIVE_TASKS: ${AUTO_ARCHIVE_TASKS:-true}
+      MERCHANT_WEBHOOK_URL: ${MERCHANT_WEBHOOK_URL:-}
+      MERCHANT_WEBHOOK_SECRET: ${MERCHANT_WEBHOOK_SECRET:-}
       SERVICE_PRIVATE_KEY: ${COMMERCE_PRIVATE_KEY}
       DATABASE_URL: postgresql://runtime:${COMMERCE_RUNTIME_PASSWORD}@commerce-db/commerce
     ports: ["127.0.0.1:${COMMERCE_HOST_PORT:-4100}:4100"]
@@ -130,6 +134,8 @@ services:
       DATABASE_URL: postgresql://runtime:${PROVIDER_RUNTIME_PASSWORD}@provider-db/provider
       RUNWAY_API_KEY: ${RUNWAY_API_KEY:-}
       RUNWAY_MODEL: ${RUNWAY_MODEL:-gen4.5}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+      REPORTED_OUTPUT_HOSTS: ${REPORTED_OUTPUT_HOSTS:-}
       ALLOW_PAID_INFERENCE: "false"
     depends_on: { provider-db: { condition: service_healthy } }
   delivery:
@@ -141,6 +147,8 @@ services:
       SERVICE_PRIVATE_KEY: ${DELIVERY_PRIVATE_KEY}
       DATABASE_URL: postgresql://runtime:${DELIVERY_RUNTIME_PASSWORD}@delivery-db/delivery
       RUNWAY_ALLOWED_HOSTS: ${RUNWAY_ALLOWED_HOSTS:-dnznrvs05pmza.cloudfront.net}
+      REPLICATE_ALLOWED_HOSTS: ${REPLICATE_ALLOWED_HOSTS:-replicate.delivery}
+      REPORTED_OUTPUT_HOSTS: ${REPORTED_OUTPUT_HOSTS:-}
       MEDIA_VERIFIER_URL: http://verifier:4105
       MEDIA_VERIFIER_TOKEN: ${MEDIA_VERIFIER_TOKEN}
     networks: [default, verifier-net]

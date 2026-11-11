@@ -3,6 +3,7 @@ import type { Identity } from "./auth.js";
 import { Problem } from "./errors.js";
 import type { Call, Context } from "./context.js";
 import type { Json, Service } from "../domain/contracts.js";
+import { WEBHOOK_TARGET, deliverWebhook } from "./webhooks.js";
 export function httpTransport(
   identity: Identity,
   urls: Record<Service, string>,
@@ -55,13 +56,15 @@ export async function dispatchOutbox(ctx: Context, tenant: string) {
   });
   if (!job) return false;
   try {
-    await ctx.call(
-      job.target as Service,
-      job.path as string,
-      tenant,
-      job.body as Json,
-      job.id as string,
-    );
+    if (job.target === WEBHOOK_TARGET) await deliverWebhook(job.body as Json);
+    else
+      await ctx.call(
+        job.target as Service,
+        job.path as string,
+        tenant,
+        job.body as Json,
+        job.id as string,
+      );
     await ctx.db.tx(tenant, (q) =>
       q.query(
         "UPDATE outbox SET state='DONE',lease_until=NULL WHERE id=$1 AND state='SENDING' AND attempts=$2",

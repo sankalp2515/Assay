@@ -72,6 +72,6 @@
 <text x="750.0" y="845" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Required proof for normal case closure</text>
 <text x="750.0" y="871" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Current cited AI assessment + valid buyer-access evidence + exact approval + confirmed PayPal outcome</text>
 <text x="750.0" y="894" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">AI outage pauses new normal completion. Preservation, existing customer access and safe financial release continue.</text>
-<text x="30" y="961" font-size="17" fill="#183b59" font-weight="700" text-anchor="start">Verified: 45 local tests · native PostgreSQL · 11 healthy containers · real Sandbox authorize / $40 capture / refund / void · real Gemini</text>
+<text x="30" y="961" font-size="17" fill="#183b59" font-weight="700" text-anchor="start">Verified: 49 local tests · native PostgreSQL · 11 healthy containers · real Sandbox authorize / $40 capture / refund / void · real Gemini</text>
 <text x="30" y="989" font-size="15" fill="#24435e" font-weight="400" text-anchor="start">Not yet: signed PayPal webhook received · real provider output in production · cloud deployment · external OIDC</text>
 </svg>

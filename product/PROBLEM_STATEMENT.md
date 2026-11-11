@@ -55,7 +55,7 @@ She writes: *"Clip 8, 9 and 10 never showed up, refund me everything."*
 There are three concrete differentiators, and each is built and tested:
 
 1. **Recovery before re-render.** An original that exists but never reached the buyer is restored and verified, and the avoided re-render is recorded.
-2. **The buyer's own words, read by AI and decided by rules.** The model returns clip numbers and literal quotes, and validation rejects anything it can't support. On 30 held-out messages with real Gemini it scored 18/30 against a keyword baseline's 15/30, or 18/23 against 11/23 on the cases Gemini answered (`backend/evidence/claim-reading-evaluation.json`).
+2. **The buyer's own words, read by AI and decided by rules.** The model returns clip numbers and literal quotes, and validation rejects anything it can't support. On 30 held-out messages with real Gemini it scored 25/30 against a keyword baseline's 15/30, with every case answered and no invalid readings (`backend/evidence/claim-reading-evaluation.json`). An earlier run scored 18/30 because Google outages cost 7 cases. Both are single runs on authored messages.
 3. **Proof the buyer can keep.** PayPal's own transaction note carries the per-clip outcome, and a signed per-clip statement can be checked by anyone with the public key.
 
 ## Social impact

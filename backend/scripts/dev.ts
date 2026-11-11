@@ -47,18 +47,31 @@ const children = services.map((name, index) => {
           ? [
               "RUNWAY_API_KEY",
               "RUNWAY_MODEL",
+              "REPLICATE_API_TOKEN",
+              "REPORTED_OUTPUT_HOSTS",
               "ALLOW_PAID_INFERENCE",
               "MAX_PROVIDER_ATTEMPTS",
             ]
           : name === "delivery"
             ? [
                 "RUNWAY_ALLOWED_HOSTS",
+                "REPLICATE_ALLOWED_HOSTS",
+                "REPORTED_OUTPUT_HOSTS",
                 "FFPROBE_PATH",
                 "FFMPEG_PATH",
                 "MEDIA_VERIFIER_URL",
                 "MEDIA_VERIFIER_TOKEN",
               ]
-            : [];
+            : name === "commerce"
+              ? [
+                  "PROVIDER_RERENDER_COST_MINOR",
+                  "APPROVAL_WINDOW_SECONDS",
+                  "MAX_BUYER_READINGS_PER_BATCH",
+                  "AUTO_ARCHIVE_TASKS",
+                  "MERCHANT_WEBHOOK_URL",
+                  "MERCHANT_WEBHOOK_SECRET",
+                ]
+              : [];
   for (const key of specific) if (process.env[key]) env[key] = process.env[key];
   return spawn(process.execPath, ["--import", "tsx", "src/main.ts"], {
     env,

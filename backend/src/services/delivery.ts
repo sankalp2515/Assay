@@ -5,6 +5,7 @@ import { authenticate, authorize, token } from "../core/auth.js";
 import { requireThat } from "../core/errors.js";
 import { id, uuid, digest, now, type Json } from "../domain/contracts.js";
 import { downloadOutput, isolatedVerification } from "../adapters/media.js";
+import { outputHosts, type TaskSource } from "../domain/sources.js";
 import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -72,9 +73,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
         await downloadOutput(
           output[0],
           path,
-          (
-            process.env.RUNWAY_ALLOWED_HOSTS ?? "dnznrvs05pmza.cloudfront.net"
-          ).split(","),
+          outputHosts(attempt.source as TaskSource | undefined),
         );
         const check = await isolatedVerification(path);
         const result = await ctx.db.mutate(
