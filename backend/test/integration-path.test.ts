@@ -207,3 +207,43 @@ test("registered tasks are archived automatically once they finish", async () =>
     await h.close();
   }
 });
+
+test("PayPal return and cancel send the buyer back to the agreement page without confirming payment", async () => {
+  const { buyerReturnBase, buyerReturnLocation, withBatch } = await import("../src/core/buyer-return.js");
+  const batch = "16ef8eb7-07ec-4522-aed4-a81cee18a642";
+  assert.equal(
+    withBatch("http://localhost:4300/v1/paypal/return", batch),
+    "http://localhost:4300/v1/paypal/return?batch=" + batch,
+  );
+  assert.throws(() => buyerReturnBase("http://evil.example"));
+  assert.throws(() => buyerReturnBase("https://user:pw@shop.example"));
+  assert.equal(buyerReturnBase("https://shop.example/app/"), "https://shop.example/app");
+  assert.equal(buyerReturnLocation("../../evil", "http://localhost:5180"), undefined);
+  assert.equal(buyerReturnLocation(["a"], "http://localhost:5180"), undefined);
+
+  const h = await harness();
+  const saved = process.env.BUYER_RETURN_BASE;
+  try {
+    delete process.env.BUYER_RETURN_BASE;
+    const plain = await h.apps.commerce.inject({ url: "/v1/paypal/return?batch=" + batch });
+    assert.equal(plain.statusCode, 200);
+    assert.equal(plain.json<{ payment_confirmed: boolean }>().payment_confirmed, false);
+
+    process.env.BUYER_RETURN_BASE = "http://localhost:5180";
+    for (const path of ["/v1/paypal/return", "/v1/paypal/cancel"]) {
+      const r = await h.apps.commerce.inject({
+        url: path + "?batch=" + batch + "&token=EC-SECRET&PayerID=SECRETPAYER",
+      });
+      assert.equal(r.statusCode, 303);
+      assert.equal(r.headers.location, "http://localhost:5180/#/buyer/" + batch + "/agreement");
+      assert.doesNotMatch(String(r.headers.location), /SECRET/);
+    }
+    const bad = await h.apps.commerce.inject({ url: "/v1/paypal/return?batch=https://evil.example" });
+    assert.equal(bad.statusCode, 200);
+    assert.equal(bad.json<{ payment_confirmed: boolean }>().payment_confirmed, false);
+  } finally {
+    if (saved === undefined) delete process.env.BUYER_RETURN_BASE;
+    else process.env.BUYER_RETURN_BASE = saved;
+    await h.close();
+  }
+});

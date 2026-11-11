@@ -66,6 +66,7 @@ const children = services.map((name, index) => {
               ? [
                   "PROVIDER_RERENDER_COST_MINOR",
                   "APPROVAL_WINDOW_SECONDS",
+                  "BUYER_RETURN_BASE",
                   "MAX_BUYER_READINGS_PER_BATCH",
                   "AUTO_ARCHIVE_TASKS",
                   "MERCHANT_WEBHOOK_URL",

@@ -92,7 +92,7 @@ Each line says what kind of evidence it is.
 | AI reading of buyer messages: Gemini 25/30 vs keyword baseline 15/30, all 30 answered, 0 invalid readings. An earlier run scored 18/30 because 7 cases hit Google outages | `backend/evidence/claim-reading-evaluation.json` | Real Gemini; 30 authored held-out messages; second single run, no variance estimate |
 | AI action choice on structured facts vs rules | `backend/evidence/investigation-evaluation.json` | Real Gemini 17/20, rules 20/20. This is why AI does not decide actions |
 | Concurrency, RLS, money bounds, encrypted restore | `backend/evidence/native-postgres.json` | Native PostgreSQL, local |
-| Full local gate: 49/49 tests (including task intake, auto-archive and signed webhooks), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
+| Full local gate: 50/50 tests (including task intake, auto-archive, signed webhooks and the PayPal return redirect), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
 | Microservices in Docker: 11 healthy containers, signed cross-service calls, real Gemini via the Investigation container | `backend/evidence/container-smoke.json` | Local Docker; no PayPal order or generation |
 
 ## Architecture

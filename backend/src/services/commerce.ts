@@ -4,6 +4,7 @@ import type { Context } from "../core/context.js";
 import { endpoint } from "../core/http.js";
 import { token } from "../core/auth.js";
 import { emitEvent } from "../core/webhooks.js";
+import { buyerReturnLocation } from "../core/buyer-return.js";
 import { Problem, requireThat } from "../core/errors.js";
 import {
   batchInput,
@@ -350,8 +351,10 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
       },
     );
   }
-  // Browser redirects carry no API bearer token. These public informational returns
-  // deliberately perform no financial mutation and never reflect query identifiers.
+  // Browser redirects carry no API bearer token. These public returns perform no financial
+  // mutation. With BUYER_RETURN_BASE set, a valid `batch` UUID (added to the PayPal URLs at
+  // order creation) sends the buyer back to the agreement page with a 303; PayPal's token
+  // and PayerID are never forwarded. Otherwise they answer with an informational body.
   app.get(
     "/v1/paypal/return",
     {
@@ -361,11 +364,15 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         summary: "Informational PayPal return; no financial state change",
       },
     },
-    async () => ({
+    async (req, reply) => {
+      const to = buyerReturnLocation((req.query as Record<string, unknown>)?.batch);
+      if (to) return reply.redirect(to, 303);
+      return {
       message:
         "PayPal approval returned. Payment is not yet confirmed. Continue in the authenticated buyer session to authorize the batch and inspect its status.",
       payment_confirmed: false,
-    }),
+      };
+    },
   );
   app.get(
     "/v1/paypal/cancel",
@@ -377,11 +384,15 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
           "Informational checkout cancellation; no financial state change",
       },
     },
-    async () => ({
+    async (req, reply) => {
+      const to = buyerReturnLocation((req.query as Record<string, unknown>)?.batch);
+      if (to) return reply.redirect(to, 303);
+      return {
       message:
         "Checkout was cancelled. No payment or authorization release is inferred from this redirect. Check the batch in the authenticated buyer session.",
       payment_confirmed: false,
-    }),
+      };
+    },
   );
   // Register a generation task against a unit. `/tasks` is the integration path for an
   // AI-video app that keeps its own provider: Runway or Replicate tasks are looked up with

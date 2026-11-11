@@ -29,6 +29,8 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: BUYER_RETURN_BASE
+        sync: false
   - type: pserv
     name: video-provider
     runtime: docker

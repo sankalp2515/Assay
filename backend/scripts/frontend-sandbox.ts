@@ -24,6 +24,7 @@ for (const name of ["PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET", "PAYPAL_MERCHANT
   if (!process.env[name])
     throw new Error(name + " is missing from backend/.env");
 
+process.env.BUYER_RETURN_BASE ??= "http://localhost:5180";
 const commercePort = Number(process.env.FIXTURE_COMMERCE_PORT ?? 4300);
 const deliveryPort = Number(process.env.FIXTURE_DELIVERY_PORT ?? 4302);
 let artifactDir: string | undefined;

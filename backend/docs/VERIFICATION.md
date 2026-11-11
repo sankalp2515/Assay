@@ -2,7 +2,7 @@
 
 **Current status, 11 November 2026.** The sections below are dated history; where numbers differ, this block wins.
 
-- `npm run verify:local`: 49/49 tests, 9 native PostgreSQL checks, build and OpenAPI all pass.
+- `npm run verify:local`: 50/50 tests, 9 native PostgreSQL checks, build and OpenAPI all pass.
 - Container smoke: 11 healthy containers. Signed calls reach all five services, and the Investigation container returns a real Gemini reading. The new task intake refuses an unauthorized batch, and batch views carry recovered clips.
 - Buyer-message reading: Gemini 25/30 vs keyword baseline 15/30 on 30 authored messages. Single run.
 - Real PayPal Sandbox: authorize, $40 final capture, refund and void at adapter level, plus one service-level $40 capture. The per-clip `note_to_payer`, merchant webhooks and Replicate lookups are fixture-tested only.

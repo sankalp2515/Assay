@@ -1,5 +1,6 @@
 import type { PayPal } from "../core/context.js";
 import { Problem, unavailable } from "../core/errors.js";
+import { withBatch } from "../core/buyer-return.js";
 import type { Json } from "../domain/contracts.js";
 const base = "https://api-m.sandbox.paypal.com";
 export const usd = (minor: number) => (minor / 100).toFixed(2);
@@ -126,8 +127,8 @@ export class PayPalSandbox implements PayPal {
         payment_source: {
           paypal: {
             experience_context: {
-              return_url: this.config.returnUrl,
-              cancel_url: this.config.cancelUrl,
+              return_url: withBatch(this.config.returnUrl, batchId),
+              cancel_url: withBatch(this.config.cancelUrl, batchId),
               user_action: "CONTINUE",
             },
           },

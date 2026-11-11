@@ -89,6 +89,7 @@ if (!existing || process.argv.includes("--sync-integrations")) {
     "REPLICATE_ALLOWED_HOSTS",
     "REPORTED_OUTPUT_HOSTS",
     "APPROVAL_WINDOW_SECONDS",
+    "BUYER_RETURN_BASE",
     "MERCHANT_WEBHOOK_URL",
     "MERCHANT_WEBHOOK_SECRET",
   ])
