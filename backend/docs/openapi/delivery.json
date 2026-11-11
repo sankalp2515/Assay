@@ -62,6 +62,27 @@
         }
       }
     },
+    "/internal/tenants": {
+      "post": {
+        "summary": "/internal/tenants",
+        "tags": [
+          "delivery"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/readiness": {
       "get": {
         "summary": "/internal/readiness",

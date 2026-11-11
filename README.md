@@ -78,7 +78,15 @@ Open the printed case URL. You get the merchant investigation workspace, the buy
 
 ## Plug it into your app
 
-Keep your provider and your generation code. Register each provider task as you submit it, and Assay archives the output when it finishes. It works with Runway or Replicate (looked up with your key) or any other provider (you report the output URL from a host you approved in advance). Signed webhooks tell your app when a clip was recovered and when PayPal settled. Three steps: [INTEGRATE.md](backend/docs/INTEGRATE.md). What a production merchant still needs: [REAL_USER_READINESS.md](product/REAL_USER_READINESS.md).
+Keep your provider and your generation code. Register each provider task as you submit it, and Assay archives the output when it finishes. It works with Runway or Replicate (looked up with your key) or any other provider (you report the output URL from a host you approved in advance). Signed webhooks tell your app when a clip was recovered, when PayPal settled, and when a buyer opened a PayPal dispute. Three steps: [INTEGRATE.md](backend/docs/INTEGRATE.md).
+
+- **Sign up and get keys.** You get a secret key for your server. An `integration` key can register work but can never approve a charge. Short-lived buyer tokens go to your buyer's browser.
+- **SDK.** `@assay/node` is in [backend/sdk](backend/sdk); it is not published to npm yet.
+- **Currencies.** Price batches in USD, EUR, GBP, CAD, AUD or JPY.
+- **Disputes.** While a PayPal dispute is open, refunds pause so the buyer is never paid twice. The signed statement is ready to attach as evidence.
+- **Your own PayPal account.** Merchants can connect their own account through PayPal partner onboarding. This needs PayPal's partner approval first.
+
+What a production merchant still needs: [REAL_USER_READINESS.md](product/REAL_USER_READINESS.md). Hosting plan: [DEPLOY.md](backend/docs/DEPLOY.md).
 
 ## Evidence
 
@@ -92,8 +100,8 @@ Each line says what kind of evidence it is.
 | AI reading of buyer messages: Gemini 25/30 vs keyword baseline 15/30, all 30 answered, 0 invalid readings. An earlier run scored 18/30 because 7 cases hit Google outages | `backend/evidence/claim-reading-evaluation.json` | Real Gemini; 30 authored held-out messages; second single run, no variance estimate |
 | AI action choice on structured facts vs rules | `backend/evidence/investigation-evaluation.json` | Real Gemini 17/20, rules 20/20. This is why AI does not decide actions |
 | Concurrency, RLS, money bounds, encrypted restore | `backend/evidence/native-postgres.json` | Native PostgreSQL, local |
-| Full local gate: 50/50 tests (including task intake, auto-archive, signed webhooks and the PayPal return redirect), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
-| Microservices in Docker: 11 healthy containers, signed cross-service calls, real Gemini via the Investigation container | `backend/evidence/container-smoke.json` | Local Docker; no PayPal order or generation |
+| Full local gate: 60/60 tests (including task intake, auto-archive, signed webhooks, the PayPal return redirect, API keys and scopes, EUR settlement, disputes, merchant PayPal onboarding, GCS storage, Vertex AI and the SDK), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
+| Microservices in Docker: 11 healthy containers, signed cross-service calls, real Gemini via the Investigation container | `backend/evidence/container-smoke.json` | Local Docker, 11 November build; not rerun on the 12 November additions; no PayPal order or generation |
 
 ## Architecture
 
@@ -117,6 +125,14 @@ Why the split is worth it: [ARCHITECTURE.md](backend/docs/ARCHITECTURE.md#why-fi
 ## Limits, stated plainly
 
 - PayPal is Sandbox only. The new per-clip `note_to_payer` is fixture-tested and has not yet been sent to real Sandbox.
+- These are tested with fixtures only:
+  - non-USD currencies
+  - disputes
+  - merchant PayPal onboarding, which also needs PayPal partner approval
+  - GCS storage
+  - Vertex AI
+
+  Only USD has run on real Sandbox.
 - Signed webhook delivery is implemented and fixture-tested, but not yet received from PayPal (it needs a public HTTPS listener).
 - The production video adapter is Runway, but it is unconfigured. The real clip came from the public LTX demo.
 - Containers run locally; not deployed to the cloud yet. External login (OIDC) is implemented but not exercised.

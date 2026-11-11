@@ -16,7 +16,7 @@ export class GeminiInvestigator implements Model {
   available: boolean;
   constructor(
     private key: string,
-    private model: string,
+    protected model: string,
     private network: typeof fetch = fetch,
     private requestTimeout = 45000,
   ) {
@@ -99,19 +99,27 @@ export class GeminiInvestigator implements Model {
       );
     return { interpretation, model: this.model, provenance: "real" as const };
   }
+  protected endpoint() {
+    return (
+      "https://generativelanguage.googleapis.com/v1beta/models/" +
+      encodeURIComponent(this.model) +
+      ":generateContent"
+    );
+  }
+  protected async auth(): Promise<Record<string, string>> {
+    return { "x-goog-api-key": this.key };
+  }
   protected async generate(
     instruction: string,
     evidence: Evidence[],
     schema: Json,
   ) {
     const r = await this.network(
-      "https://generativelanguage.googleapis.com/v1beta/models/" +
-        encodeURIComponent(this.model) +
-        ":generateContent",
+      this.endpoint(),
       {
         method: "POST",
         headers: {
-          "x-goog-api-key": this.key,
+          ...(await this.auth()),
           "content-type": "application/json",
         },
         body: JSON.stringify({
@@ -144,5 +152,36 @@ export class GeminiInvestigator implements Model {
         "AI returned no usable assessment",
       );
     return JSON.parse(text) as unknown;
+  }
+}
+
+// The same Gemini models through Vertex AI on Google Cloud, billed to the Cloud project
+// (where Google Cloud credits apply; AI Studio keys cannot use them). Authenticates as the
+// Cloud Run service account, so no AI key is stored. Admitted only when the operator has
+// explicitly confirmed that this project's spend is covered (VERTEX_CREDITS_CONFIRMED).
+export class VertexGemini extends GeminiInvestigator {
+  constructor(
+    private project: string,
+    private location: string,
+    model: string,
+    private token: () => Promise<string>,
+    network: typeof fetch = fetch,
+    timeout = 30000,
+  ) {
+    super(project ? "vertex" : "", model, network, timeout);
+    if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(project) && project)
+      throw new Error("Invalid VERTEX_PROJECT");
+    if (!/^[a-z0-9-]{4,30}$/.test(location)) throw new Error("Invalid VERTEX_LOCATION");
+  }
+  protected endpoint() {
+    const host = this.location === "global" ? "aiplatform.googleapis.com" : this.location + "-aiplatform.googleapis.com";
+    return (
+      `https://${host}/v1/projects/${this.project}/locations/${this.location}/publishers/google/models/` +
+      encodeURIComponent(this.model) +
+      ":generateContent"
+    );
+  }
+  protected async auth(): Promise<Record<string, string>> {
+    return { authorization: "Bearer " + (await this.token()) };
   }
 }

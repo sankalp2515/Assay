@@ -4,6 +4,8 @@ import { createApp } from "./app.js";
 import { embedded, postgres } from "./core/database.js";
 import { httpTransport, dispatchOutbox } from "./core/transport.js";
 import { maintain } from "./core/maintenance.js";
+import { knownTenants } from "./core/tenants.js";
+import { configuredStore } from "./adapters/storage.js";
 import { PayPalSandbox } from "./adapters/paypal.js";
 import { GeminiInvestigator } from "./adapters/gemini.js";
 import { configuredInvestigator } from "./adapters/models.js";
@@ -66,6 +68,7 @@ if (name === "payments")
       process.env.PAYPAL_RETURN_URL ?? "http://localhost:4100/v1/paypal/return",
     cancelUrl:
       process.env.PAYPAL_CANCEL_URL ?? "http://localhost:4100/v1/paypal/cancel",
+    partnerAttributionId: process.env.PAYPAL_PARTNER_ATTRIBUTION_ID || undefined,
   });
 if (name === "investigation") ctx.model = configuredInvestigator(process.env);
 if (name === "provider") {
@@ -75,16 +78,16 @@ if (name === "provider") {
   );
   ctx.providers = { replicate: new Replicate(process.env.REPLICATE_API_TOKEN ?? "") };
 }
+if (name === "delivery") ctx.store = configuredStore(ctx.artifactDir);
 const app = await createApp(ctx);
 let busy = false;
 let stopping = false;
 let currentIteration: Promise<void> | undefined;
-const tenants = (process.env.TENANT_IDS ?? "").split(",").filter(Boolean);
 let iterations = 0;
 async function iterate() {
   busy = true;
   try {
-    for (const tenant of tenants) {
+    for (const tenant of await knownTenants(ctx)) {
       if (stopping) break;
       await dispatchOutbox(ctx, tenant);
       if (iterations % 60 === 0) await maintain(ctx, tenant);

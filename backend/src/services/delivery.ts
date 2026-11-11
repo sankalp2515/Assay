@@ -6,7 +6,8 @@ import { requireThat } from "../core/errors.js";
 import { id, uuid, digest, now, type Json } from "../domain/contracts.js";
 import { downloadOutput, isolatedVerification } from "../adapters/media.js";
 import { outputHosts, type TaskSource } from "../domain/sources.js";
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { LocalStore } from "../adapters/storage.js";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -76,6 +77,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
           outputHosts(attempt.source as TaskSource | undefined),
         );
         const check = await isolatedVerification(path);
+        await (ctx.store ?? new LocalStore(ctx.artifactDir)).put(String(record.id), path);
         const result = await ctx.db.mutate(
           a.tenant,
           "artifact",
@@ -146,7 +148,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
         "Artifact is not currently retrievable",
         409,
       );
-      const bytes = await readFile(join(ctx.artifactDir, key + ".mp4"));
+      const bytes = await (ctx.store ?? new LocalStore(ctx.artifactDir)).get(key);
       requireThat(
         createHash("sha256").update(bytes).digest("hex") === artifact.sha256,
         "artifact_integrity",

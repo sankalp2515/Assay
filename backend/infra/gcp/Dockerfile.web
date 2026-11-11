@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1
+# Web gateway image: the built frontend plus the session gateway that proxies /api to
+# Commerce and Delivery. Build context is the repository root:
+#   docker build -f backend/infra/gcp/Dockerfile.web -t assay-web .
+FROM node:22-bookworm-slim AS frontend
+WORKDIR /src/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend ./
+RUN npm run build
+
+FROM node:22-bookworm-slim AS backend
+WORKDIR /app
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci
+COPY backend/tsconfig.json backend/tsconfig.build.json ./
+COPY backend/src ./src
+COPY backend/scripts ./scripts
+RUN npm run build
+
+FROM node:22-bookworm-slim AS runtime
+WORKDIR /app
+COPY backend/package.json backend/package-lock.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=backend /app/dist ./dist
+COPY backend/migrations ./migrations
+COPY --from=frontend /src/frontend/dist/client ./client
+RUN chown -R node:node /app
+USER node
+ENV NODE_ENV=production WEB_ASSETS_DIR=/app/client WEB_PORT=4300
+EXPOSE 4300
+CMD ["node", "dist/scripts/web.js"]

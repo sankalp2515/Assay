@@ -15,19 +15,31 @@ import {
   type Operation,
 } from "../domain/contracts.js";
 import {
-  usd,
   verifyMoney,
   refundReferencesCapture,
 } from "../adapters/paypal.js";
+import { sameMoney, isCurrency, type Currency } from "../domain/money.js";
+import type { PayOptions } from "../core/context.js";
+import { disputeRoutes, openDispute } from "./disputes.js";
+import { merchantRoutes, merchantFor, tenantForMerchant } from "./merchants.js";
 import {
   deliveryStatement,
   statementNote,
   signStatement,
   type Statement,
 } from "../domain/statement.js";
-function amountMatches(r: Json, amount: number) {
-  const a = r.amount as Json | undefined;
-  return a?.currency_code === "USD" && a.value === usd(amount);
+function amountMatches(r: Json, amount: number, code: Currency = "USD") {
+  return sameMoney(r.amount as Json | undefined, amount, code);
+}
+const currencyOf = (r: Json | undefined): Currency =>
+  isCurrency(r?.currency) ? r.currency : "USD";
+// Which PayPal account and currency a stored record's money belongs to. Records created
+// before multi-merchant support carry neither and mean the platform account in USD.
+export function payOptions(ctx: Context, r: Json | undefined): PayOptions & { merchantId: string; currency: Currency } {
+  return {
+    currency: currencyOf(r),
+    merchantId: typeof r?.merchant_id === "string" ? r.merchant_id : ctx.merchantId,
+  };
 }
 function authorizationFrom(order: Json) {
   const units = order.purchase_units as Json[] | undefined;
@@ -36,6 +48,8 @@ function authorizationFrom(order: Json) {
 }
 export function paymentRoutes(app: FastifyInstance, ctx: Context) {
   refundReviewRoutes(app, ctx);
+  disputeRoutes(app, ctx);
+  merchantRoutes(app, ctx);
   const ensure = () => {
     requireThat(
       ctx.paypal?.available && ctx.merchantId,
@@ -89,11 +103,14 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         "consent_required",
         "Buyer must accept the contract first",
       );
+      const merchant = await merchantFor(ctx, a.tenant);
       const order = await ctx.db.create(a.tenant, "order", b.batch_id, b, {
         id: b.batch_id,
         batch_id: b.batch_id,
         state: "RESERVED",
         amount_minor: batch.ceiling_minor,
+        currency: currencyOf(batch),
+        merchant_id: merchant,
       });
       if (order.state !== "RESERVED") return order;
       await ctx.db.mutate(a.tenant, "order", b.batch_id, async (o) => {
@@ -109,6 +126,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
           b.batch_id,
           Number(batch.ceiling_minor),
           b.batch_id,
+          payOptions(ctx, order),
         );
         const links = resource.links as Json[] | undefined;
         return ctx.db.mutate(a.tenant, "order", b.batch_id, async (o) => ({
@@ -162,13 +180,19 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         "order_required",
         "Known PayPal order required",
       );
-      const resource = await paypal.getOrder(String(order.provider_id));
+      const o = payOptions(ctx, order);
+      requireThat(
+        o.currency === currencyOf(batch),
+        "order_mismatch",
+        "Order currency does not match contract",
+      );
+      const resource = await paypal.getOrder(String(order.provider_id), o);
       const units = resource.purchase_units as Json[] | undefined;
       const unit = units?.[0];
       requireThat(
         units?.length === 1 &&
           unit?.reference_id === b.batch_id &&
-          verifyMoney(unit, Number(batch.ceiling_minor), ctx.merchantId),
+          verifyMoney(unit, Number(batch.ceiling_minor), o.merchantId, o.currency),
         "order_mismatch",
         "PayPal order does not match contract",
       );
@@ -190,6 +214,8 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
           state: "RESERVED",
           order_id: order.provider_id,
           amount_minor: batch.ceiling_minor,
+          currency: o.currency,
+          merchant_id: o.merchantId,
         },
       );
       await ctx.db.mutate(a.tenant, "authorization", b.batch_id, async (r) => {
@@ -204,17 +230,18 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         const response = await paypal.authorizeOrder(
           String(order.provider_id),
           b.batch_id,
+          o,
         );
         const auth = authorizationFrom(response);
         requireThat(
-          auth?.id && amountMatches(auth, Number(batch.ceiling_minor)),
+          auth?.id && amountMatches(auth, Number(batch.ceiling_minor), o.currency),
           "authorization_mismatch",
           "Invalid authorization resource",
         );
-        const checked = await paypal.getAuthorization(String(auth.id));
+        const checked = await paypal.getAuthorization(String(auth.id), o);
         requireThat(
           checked.status === "CREATED" &&
-            amountMatches(checked, Number(batch.ceiling_minor)),
+            amountMatches(checked, Number(batch.ceiling_minor), o.currency),
           "authorization_pending",
           "Authorization is not confirmed",
         );
@@ -324,7 +351,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
           kind: "VOID",
           state: "RESERVED",
           amount_minor: 0,
-          currency: "USD",
+          ...payOptionsRecord(ctx, auth),
           request_key: key,
           authorization_id: auth.provider_id,
           emergency: true,
@@ -438,10 +465,16 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         "authorization_required",
         "Confirmed authorization required",
       );
-      const current = await paypal.getAuthorization(String(auth.provider_id));
+      const o = payOptions(ctx, auth);
+      requireThat(
+        o.currency === currencyOf(batch),
+        "authorization_invalid",
+        "Authorization currency does not match contract",
+      );
+      const current = await paypal.getAuthorization(String(auth.provider_id), o);
       requireThat(
         current.status === "CREATED" &&
-          amountMatches(current, Number(batch.ceiling_minor)),
+          amountMatches(current, Number(batch.ceiling_minor), o.currency),
         "authorization_invalid",
         "Authorization is no longer available",
       );
@@ -451,6 +484,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         contract_hash: permit.contract_hash,
         assessment_id: permit.assessment_id,
         ceiling_minor: Number(batch.ceiling_minor),
+        currency: o.currency,
         units: batch.units as { id: string; price_minor: number }[],
         billed: permit.unit_ids,
         receipts,
@@ -461,7 +495,8 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         kind: permit.action,
         state: "RESERVED",
         amount_minor: total,
-        currency: "USD",
+        currency: o.currency,
+        merchant_id: o.merchantId,
         request_key: b.permit_id,
         permit_id: b.permit_id,
         authorization_id: auth.provider_id,
@@ -565,6 +600,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
           return { ...old, state: "DISPATCHING" };
         },
       );
+      const o = payOptions(ctx, op);
       try {
         let response: Json;
         if (op.kind === "CAPTURE")
@@ -581,17 +617,20 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
                   ),
                 }
               : undefined,
+            o,
           );
         else if (op.kind === "REFUND")
           response = await paypal.refund(
             String(op.capture_id),
             op.amount_minor,
             op.request_key,
+            o,
           );
         else
           response = await paypal.void(
             String(op.authorization_id),
             op.request_key,
+            o,
           );
         await ctx.db.mutate<Operation>(
           a.tenant,
@@ -780,7 +819,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         kind: "REFUND",
         state: "RESERVED",
         amount_minor: 0,
-        currency: "USD",
+        ...payOptionsRecord(ctx, capture),
         request_key: id(),
         capture_id: capture.provider_id,
         reason: b.reason,
@@ -811,6 +850,13 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
             prior.id,
           ))!;
         }
+        // A refund while PayPal holds an open dispute could pay the buyer twice.
+        const dispute = await openDispute(ctx, q, a.tenant, b.batch_id);
+        requireThat(
+          !dispute,
+          "dispute_open",
+          "A PayPal dispute is open on this capture. Respond in the dispute instead of refunding, so the buyer is not compensated twice.",
+        );
         await verifyRefundApproval(ctx, q, a.tenant, b);
         const rows = await q.query(
           "SELECT * FROM unit_settlements WHERE tenant_id=$1 AND batch_id=$2 AND unit_id=ANY($3::uuid[]) FOR UPDATE",
@@ -907,8 +953,9 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         "Webhook signature verification failed",
         401,
       );
-      // Tenant mapping is local account configuration, never an untrusted custom_id.
-      const tenant = process.env.MERCHANT_TENANT_ID;
+      // Tenant mapping is local account configuration (a connected merchant's PayPal id,
+      // or the single configured tenant), never an untrusted custom_id.
+      const tenant = await tenantForEvent(ctx, event);
       requireThat(
         tenant,
         "tenant_mapping_missing",
@@ -923,8 +970,14 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         400,
       );
       const resource = event.resource as Json;
+      const disputeId =
+        String(event.event_type ?? "").startsWith("CUSTOMER.DISPUTE.") &&
+        typeof resource?.dispute_id === "string" &&
+        /^[A-Za-z0-9-]{4,64}$/.test(resource.dispute_id)
+          ? resource.dispute_id
+          : undefined;
       const op =
-        typeof resource?.id === "string"
+        !disputeId && typeof resource?.id === "string"
           ? await ctx.db.tx(tenant, async (q) => {
               const rows = await q.query<{ body: Operation }>(
                 "SELECT body FROM entities WHERE tenant_id=$1 AND kind='operation' AND body->>'provider_id'=$2 LIMIT 1",
@@ -946,15 +999,23 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
         event.id,
         event,
         received,
-        op
+        disputeId
           ? {
               target: "payments",
-              path: "/internal/operations/" + op.id + "/reconcile",
+              path: "/internal/disputes/" + disputeId + "/sync",
               body: {},
             }
-          : undefined,
+          : op
+            ? {
+                target: "payments",
+                path: "/internal/operations/" + op.id + "/reconcile",
+                body: {},
+              }
+            : undefined,
       );
-      return reply.code(200).send({ accepted: true, matched: !!op });
+      return reply
+        .code(200)
+        .send({ accepted: true, matched: !!op || !!disputeId });
     },
   );
 }
@@ -968,25 +1029,26 @@ export async function reconcile(ctx: Context, tenant: string, key: string) {
     "PayPal is required for read-back",
     503,
   );
+  const o = payOptions(ctx, op);
   let resource: Json;
   if (op.kind === "VOID")
-    resource = await ctx.paypal.getAuthorization(String(op.authorization_id));
+    resource = await ctx.paypal.getAuthorization(String(op.authorization_id), o);
   else if (op.provider_id)
     resource =
       op.kind === "REFUND"
-        ? await ctx.paypal.getRefund(op.provider_id)
-        : await ctx.paypal.getCapture(op.provider_id);
+        ? await ctx.paypal.getRefund(op.provider_id, o)
+        : await ctx.paypal.getCapture(op.provider_id, o);
   else {
     // A lost capture response can be recovered only through the original approved order.
     if (op.kind === "CAPTURE" && op.order_id) {
-      const order = await ctx.paypal.getOrder(String(op.order_id));
+      const order = await ctx.paypal.getOrder(String(op.order_id), o);
       const units = order.purchase_units as Json[] | undefined;
       const unit = units?.[0];
       const payments = unit?.payments as Json | undefined;
       const auths = payments?.authorizations as Json[] | undefined;
       const captures = payments?.captures as Json[] | undefined;
       const candidates =
-        captures?.filter((c) => amountMatches(c, op.amount_minor)) ?? [];
+        captures?.filter((c) => amountMatches(c, op.amount_minor, o.currency)) ?? [];
       if (
         units?.length === 1 &&
         unit?.reference_id === op.batch_id &&
@@ -1021,7 +1083,7 @@ export async function reconcile(ctx: Context, tenant: string, key: string) {
     confirmed =
       resource.status === "COMPLETED" &&
       resource.id === op.provider_id &&
-      amountMatches(resource, op.amount_minor) &&
+      amountMatches(resource, op.amount_minor, o.currency) &&
       refundReferencesCapture(resource, String(op.capture_id));
   else {
     const related = (resource.supplementary_data as Json | undefined)
@@ -1029,7 +1091,7 @@ export async function reconcile(ctx: Context, tenant: string, key: string) {
     confirmed =
       resource.status === "COMPLETED" &&
       resource.id === op.provider_id &&
-      verifyMoney(resource, op.amount_minor, ctx.merchantId) &&
+      verifyMoney(resource, op.amount_minor, o.merchantId, o.currency) &&
       related?.authorization_id === op.authorization_id;
   }
   if (!confirmed)
@@ -1071,7 +1133,7 @@ export async function reconcile(ctx: Context, tenant: string, key: string) {
         key,
         op.kind,
         op.amount_minor,
-        "USD",
+        o.currency,
         op.provider_id ?? op.authorization_id,
         digest(resource),
       ],
@@ -1081,7 +1143,7 @@ export async function reconcile(ctx: Context, tenant: string, key: string) {
       batch_id: op.batch_id,
       kind: op.kind,
       amount_minor: op.amount_minor,
-      currency: "USD",
+      currency: o.currency,
       provider_id: op.provider_id ?? op.authorization_id,
       status: resource.status,
     });
@@ -1091,4 +1153,21 @@ export async function reconcile(ctx: Context, tenant: string, key: string) {
     });
     return result;
   });
+}
+
+function payOptionsRecord(ctx: Context, r: Json | undefined) {
+  const o = payOptions(ctx, r);
+  return { currency: o.currency, merchant_id: o.merchantId };
+}
+async function tenantForEvent(ctx: Context, event: Json) {
+  const resource = (event.resource ?? {}) as Json;
+  const disputed = (resource.disputed_transactions as Json[] | undefined)?.[0];
+  const merchant =
+    (resource.payee as Json | undefined)?.merchant_id ??
+    (disputed?.seller as Json | undefined)?.merchant_id;
+  if (typeof merchant === "string" && merchant !== ctx.merchantId) {
+    const connected = await tenantForMerchant(ctx, merchant);
+    if (connected) return connected;
+  }
+  return process.env.MERCHANT_TENANT_ID;
 }

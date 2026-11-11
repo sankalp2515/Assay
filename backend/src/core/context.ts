@@ -7,22 +7,32 @@ import type {
   Assessment,
 } from "../domain/contracts.js";
 import type { Interpretation } from "../domain/claims.js";
+import type { Currency } from "../domain/money.js";
+import type { BlobStore } from "../adapters/storage.js";
+// Batch currency, and the PayPal merchant the money belongs to. Without merchantId the
+// platform's own PayPal account is used (single-merchant deployments).
+export type PayOptions = { currency?: Currency; merchantId?: string };
 export interface PayPal {
   available: boolean;
-  createOrder(batchId: string, amount: number, key: string): Promise<Json>;
-  authorizeOrder(orderId: string, key: string): Promise<Json>;
-  getOrder(id: string): Promise<Json>;
-  getAuthorization(id: string): Promise<Json>;
+  clientId?: string;
+  createOrder(batchId: string, amount: number, key: string, o?: PayOptions): Promise<Json>;
+  authorizeOrder(orderId: string, key: string, o?: PayOptions): Promise<Json>;
+  getOrder(id: string, o?: PayOptions): Promise<Json>;
+  getAuthorization(id: string, o?: PayOptions): Promise<Json>;
   capture(
     authId: string,
     amount: number,
     key: string,
     details?: { invoice_id: string; note_to_payer: string },
+    o?: PayOptions,
   ): Promise<Json>;
-  getCapture(id: string): Promise<Json>;
-  void(authId: string, key: string): Promise<Json>;
-  refund(captureId: string, amount: number, key: string): Promise<Json>;
-  getRefund(id: string): Promise<Json>;
+  getCapture(id: string, o?: PayOptions): Promise<Json>;
+  void(authId: string, key: string, o?: PayOptions): Promise<Json>;
+  refund(captureId: string, amount: number, key: string, o?: PayOptions): Promise<Json>;
+  getRefund(id: string, o?: PayOptions): Promise<Json>;
+  getDispute?(id: string, o?: PayOptions): Promise<Json>;
+  createPartnerReferral?(trackingId: string, returnUrl: string): Promise<Json>;
+  getMerchantIntegration?(merchantId: string): Promise<Json>;
   verifyWebhook(headers: Record<string, string>, event: Json): Promise<boolean>;
 }
 export interface Model {
@@ -73,6 +83,8 @@ export interface Context {
   // Additional lookup adapters by name (e.g. replicate). `provider` stays the default (Runway).
   providers?: Record<string, VideoProvider>;
   artifactDir: string;
+  // Archived originals. Defaults to files in artifactDir.
+  store?: BlobStore;
   allowPaid: boolean;
   maxAttempts: number;
   merchantId: string;

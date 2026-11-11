@@ -175,3 +175,42 @@ test("gateway binds sessions to verified membership, rejects CSRF and role forge
     await h.close();
   }
 });
+test("demo login is off by default and, when on, signs in as the configured Sandbox demo member", async () => {
+  const h = await harness(),
+    db = await embedded();
+  await db.migrate("commerce");
+  const make = (demoLogin: boolean) =>
+    createGateway({
+      origin: "https://demo.example",
+      tenant: h.tenant,
+      identity: h.identities.operator,
+      db,
+      demoLogin,
+      members: {
+        "demo-buyer": { role: "buyer", subject: h.buyer },
+        "demo-operator": { role: "operator", subject: h.operator },
+      },
+      commerceUrl: "https://commerce.internal",
+      deliveryUrl: "https://delivery.internal",
+      login: { authorization: () => "https://id.example", exchange: async () => "x" },
+    });
+  const off = await make(false);
+  const on = await make(true);
+  try {
+    assert.equal((await off.inject({ url: "/api/demo-login?as=operator" })).statusCode, 404);
+    const r = await on.inject({ url: "/api/demo-login?as=buyer&returnTo=https://evil.example" });
+    assert.equal(r.statusCode, 302);
+    assert.equal(r.headers.location, "/#/batches");
+    const cookie = String(r.headers["set-cookie"]).split(";")[0]!;
+    assert.match(String(r.headers["set-cookie"]), /HttpOnly; SameSite=Lax; Max-Age=1800; Secure/);
+    const s = (await on.inject({ url: "/api/session", headers: { cookie } })).json<Record<string, unknown>>();
+    assert.equal(s.role, "buyer");
+    assert.equal(s.subject, h.buyer);
+    assert.equal(s.demo, true);
+  } finally {
+    await off.close();
+    await on.close();
+    await db.close();
+    await h.close();
+  }
+});

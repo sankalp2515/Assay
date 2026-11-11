@@ -27,6 +27,10 @@ export interface GatewayOptions {
   localOnly?: boolean;
   network?: typeof fetch;
   merchantName?: string;
+  // Hosted Sandbox demo only: "Try as merchant / as buyer" without an identity provider.
+  // Signs a visitor in as the configured demo member for that role. Never use with real
+  // money or real customer data; /api/session reports demo: true so the UI can say so.
+  demoLogin?: boolean;
 }
 const random = () => randomBytes(32).toString("base64url");
 const equal = (a: string, b: string) =>
@@ -120,6 +124,34 @@ export async function createGateway(options: GatewayOptions) {
     )
       return null;
     return s;
+  }
+  if (o.demoLogin) {
+    app.get(
+      "/api/demo-login",
+      { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+      async (req, reply) => {
+        const q = req.query as { as?: string; returnTo?: string };
+        const role = q.as === "buyer" ? "buyer" : "operator";
+        const entry = Object.entries(o.members).find(([, m]) => m.role === role);
+        if (!entry) return reply.code(404).send({ message: "No demo member for this role" });
+        const [subject, member] = entry;
+        const sid = random(),
+          csrf = random();
+        const record = {
+          id: stableId(sid),
+          oidc_subject: subject,
+          ...member,
+          csrf,
+          demo: true,
+          expires_at: Date.now() + 1800000,
+          revoked: false,
+        };
+        await o.db.create(o.tenant, "web_session", sid, record, record);
+        reply
+          .header("Set-Cookie", cookie(cookieName, sid, 1800))
+          .redirect(safeReturn(q.returnTo ?? (role === "buyer" ? "/#/buyer" : "/#/batches")));
+      },
+    );
   }
   app.get("/api/login", async (req, reply) => {
     const state = random(),
@@ -221,6 +253,7 @@ export async function createGateway(options: GatewayOptions) {
       csrf: s.csrf,
       expires_at: s.expires_at,
       environment: "sandbox",
+      demo: s.demo === true,
       merchant_name: o.merchantName || "Demo merchant (Sandbox)",
     };
   });
@@ -276,7 +309,7 @@ export async function createGateway(options: GatewayOptions) {
         !["commerce", "delivery"].includes(p.service) ||
         !/^\/v1\/[a-zA-Z0-9/_-]+$/.test(path) ||
         (p.service === "commerce" &&
-          !/^\/v1\/(batches|operations|readiness|controls|support)(\/|$)/.test(
+          !/^\/v1\/(batches|operations|readiness|controls|support|account|api-keys|buyer-sessions|merchant)(\/|$)/.test(
             path,
           ))
       )

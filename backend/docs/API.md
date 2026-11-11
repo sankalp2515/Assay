@@ -96,3 +96,42 @@ Financial projection includes refundable_units (unit_id, amount_minor), selected
 - Merchant webhooks: `clip.recovered`, `batch.settled` and `batch.voided` are written to the commerce outbox in the same transaction as the state change. They are signed with HMAC-SHA256 (`Assay-Signature: t=…,v1=…`) and retried on 5xx or 429. They are only emitted when `MERCHANT_WEBHOOK_URL` and a 32+ character `MERCHANT_WEBHOOK_SECRET` are set.
 
 Integration walkthrough: [INTEGRATE.md](INTEGRATE.md).
+
+## Merchant platform (12 November)
+
+**Sign-up and keys.**
+
+- `POST /v1/signup` (public, 5 per hour): `{merchant_name, email, invite_code?}` returns `201 {tenant_id, operator_id, api_key}`. The key is shown once. `SIGNUP_MODE` is `closed` (default), `invite` or `open`.
+- `GET /v1/account`
+- `POST /v1/api-keys {name, scope}`, where scope is `operator` or `integration`. Returns the key once.
+- `GET /v1/api-keys` lists prefixes only.
+- `POST /v1/api-keys/:id/revoke`
+
+Send a key as `Authorization: Bearer assay_sk_…` to Commerce `/v1/` routes. An `integration` key can open batches, register tasks, preserve output and read. It cannot approve, refund or cancel.
+
+**Buyer sessions.** `POST /v1/buyer-sessions {batch_id, buyer_id}` returns `{buyer_token, expires_at}`. The token, `assay_bt_…`, works for that buyer on that batch's routes for 30 minutes.
+
+**Currencies.** `currency` on a batch is one of USD, EUR, GBP, CAD, AUD or JPY. Amounts are integer minor units of that currency; JPY has none. A batch never mixes or converts currencies. `GET /v1/operations/impact` adds `by_currency`, and its top-level money fields are USD only.
+
+**PayPal button configuration.** `GET /v1/paypal/config` (public) returns `{client_id, environment, intent:"authorize", currencies}` for the PayPal JS SDK. Orders are still created only by `POST /v1/batches/{id}/paypal/order`.
+
+**Merchant's own PayPal account.**
+
+- `GET /v1/merchant/paypal`
+- `POST /v1/merchant/paypal/onboarding {return_url}` returns `{action_url}`, the PayPal sign-up link.
+- `POST /v1/merchant/paypal/complete {merchant_id}` reads the account back from PayPal before activating it.
+
+These need `PAYPAL_PARTNER_MODE=true`. Without it, every tenant uses the platform's PayPal account. Once a merchant is connected, orders name them as payee and every call carries `PayPal-Auth-Assertion` for that merchant.
+
+**Disputes.** PayPal `CUSTOMER.DISPUTE.*` webhooks, after signature verification, trigger a read-back of the dispute.
+
+- `GET /v1/batches/:id/disputes` returns `{disputes, refunds_paused, evidence}`. `evidence` is the signed delivery statement to attach in the PayPal Resolution Center.
+- While a dispute is open, refunds return `409 dispute_open`.
+- Merchant webhooks: `dispute.opened`, `dispute.updated` and `dispute.resolved`.
+
+**Storage and AI options.**
+
+- `ARTIFACT_STORE=gcs` with `GCS_BUCKET` stores originals in a private bucket.
+- `AI_PRIMARY=vertex`, or `vertex` listed in `AI_FALLBACK_PROVIDERS`, plus `VERTEX_PROJECT` and `VERTEX_CREDITS_CONFIRMED=true`, calls Gemini on Vertex AI as the Cloud service account.
+
+**SDK.** `backend/sdk` is `@assay/node`, a dependency-free TypeScript client. It requires idempotency keys on every write and includes `verifyWebhook`.

@@ -5,16 +5,21 @@ import { embedded, postgres } from "../src/core/database.js";
 import { createGateway, type Member } from "../src/web/gateway.js";
 import { oidcProvider } from "../src/web/oidc.js";
 const env = process.env;
+const demoLogin = env.WEB_DEMO_LOGIN === "true";
 for (const key of [
   "WEB_ORIGIN",
   "WEB_TENANT_ID",
-  "WEB_OIDC_ISSUER",
-  "WEB_OIDC_CLIENT_ID",
-  "WEB_OIDC_CLIENT_SECRET",
-  "WEB_OIDC_AUTHORIZATION_ENDPOINT",
-  "WEB_OIDC_TOKEN_ENDPOINT",
-  "WEB_OIDC_JWKS_URI",
   "WEB_MEMBERS_JSON",
+  ...(demoLogin
+    ? []
+    : [
+        "WEB_OIDC_ISSUER",
+        "WEB_OIDC_CLIENT_ID",
+        "WEB_OIDC_CLIENT_SECRET",
+        "WEB_OIDC_AUTHORIZATION_ENDPOINT",
+        "WEB_OIDC_TOKEN_ENDPOINT",
+        "WEB_OIDC_JWKS_URI",
+      ]),
 ])
   if (!env[key])
     throw Error(`Configure ${key} privately before starting the web gateway`);
@@ -44,10 +49,18 @@ const app = await createGateway({
   localOnly: local,
   merchantName: env.WEB_MERCHANT_NAME,
   members: JSON.parse(env.WEB_MEMBERS_JSON!) as Record<string, Member>,
-  assetsDir: resolve("../frontend/dist/client"),
+  assetsDir: resolve(env.WEB_ASSETS_DIR || "../frontend/dist/client"),
   commerceUrl: env.WEB_COMMERCE_URL || "http://127.0.0.1:4100",
   deliveryUrl: env.WEB_DELIVERY_URL || "http://127.0.0.1:4102",
-  login: oidcProvider({
+  demoLogin,
+  login: demoLogin && !env.WEB_OIDC_ISSUER
+    ? {
+        authorization: () => origin + "/#/",
+        exchange: async () => {
+          throw Error("Identity provider not configured on this demo");
+        },
+      }
+    : oidcProvider({
     issuer: env.WEB_OIDC_ISSUER!,
     clientId: env.WEB_OIDC_CLIENT_ID!,
     clientSecret: env.WEB_OIDC_CLIENT_SECRET!,

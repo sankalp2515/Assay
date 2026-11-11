@@ -1,6 +1,7 @@
 import { CompactSign, compactVerify, decodeProtectedHeader, importPKCS8, importSPKI } from "jose";
 import type { Identity } from "../core/auth.js";
 import { digest, type Json } from "./contracts.js";
+import { formatMoney, type Currency } from "./money.js";
 
 // A per-clip delivery statement: what was delivered, what was charged, what was never taken.
 // Built from the exact permit and purchaser-retrieval receipts that authorized the PayPal call.
@@ -11,7 +12,7 @@ export type Statement = {
   permit_id: string;
   contract_hash: string;
   assessment_id: string;
-  currency: "USD";
+  currency: Currency;
   authorized_minor: number;
   charged_minor: number;
   not_taken_minor: number;
@@ -33,6 +34,7 @@ export function deliveryStatement(input: {
   contract_hash: string;
   assessment_id: string;
   ceiling_minor: number;
+  currency?: Currency;
   units: { id: string; price_minor: number }[];
   billed: string[];
   receipts: Json[];
@@ -59,7 +61,7 @@ export function deliveryStatement(input: {
     permit_id: input.permit_id,
     contract_hash: input.contract_hash,
     assessment_id: input.assessment_id,
-    currency: "USD",
+    currency: input.currency ?? "USD",
     authorized_minor: input.ceiling_minor,
     charged_minor: charged,
     not_taken_minor: input.ceiling_minor - charged,
@@ -67,14 +69,14 @@ export function deliveryStatement(input: {
   };
 }
 
-const usd = (minor: number) => "$" + (minor / 100).toFixed(2);
 
 // Shown to the buyer inside their PayPal transaction (note_to_payer, 255 characters max).
 export function statementNote(s: Statement, statementDigest: string) {
   const delivered = s.clips.filter((c) => c.charged).length;
+  const m = (minor: number) => formatMoney(minor, s.currency ?? "USD");
   return (
-    `Charged ${usd(s.charged_minor)} for ${delivered} of ${s.clips.length} clips delivered. ` +
-    `${usd(s.not_taken_minor)} of your ${usd(s.authorized_minor)} authorization was not taken. ` +
+    `Charged ${m(s.charged_minor)} for ${delivered} of ${s.clips.length} clips delivered. ` +
+    `${m(s.not_taken_minor)} of your ${m(s.authorized_minor)} authorization was not taken. ` +
     `Statement ${statementDigest.slice(0, 16)}`
   ).slice(0, 255);
 }

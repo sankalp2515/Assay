@@ -17,7 +17,8 @@ import {
   type Batch,
   type Evidence,
 } from "../src/domain/contracts.js";
-import { usd } from "../src/adapters/paypal.js";
+import { paypalValue, type Currency } from "../src/domain/money.js";
+import type { PayOptions } from "../src/core/context.js";
 import { dispatchOutbox } from "../src/core/transport.js";
 export class FixturePayPal implements PayPal {
   available = true;
@@ -32,9 +33,19 @@ export class FixturePayPal implements PayPal {
   refundAmount = 0;
   batchId = "";
   ceiling = 0;
-  async createOrder(batchId: string, amount: number) {
+  currency: Currency = "USD";
+  clientId = "CLIENT_FIXTURE";
+  actedFor: (string | undefined)[] = [];
+  webhookValid = false;
+  disputes: Record<string, Json> = {};
+  integrations: Record<string, Json> = {};
+  referrals = 0;
+  async createOrder(batchId: string, amount: number, _key?: string, o: PayOptions = {}) {
     this.batchId = batchId;
     this.ceiling = amount;
+    this.currency = o.currency ?? "USD";
+    if (o.merchantId) this.merchant = o.merchantId;
+    this.actedFor.push(o.merchantId);
     return {
       id: "ORDER_FIXTURE",
       status: "CREATED",
@@ -51,7 +62,7 @@ export class FixturePayPal implements PayPal {
         {
           reference_id: this.batchId,
           payee: { merchant_id: this.merchant },
-          amount: { currency_code: "USD", value: usd(this.ceiling) },
+          amount: { currency_code: this.currency, value: paypalValue(this.ceiling, this.currency) },
         },
       ],
     };
@@ -65,7 +76,7 @@ export class FixturePayPal implements PayPal {
               {
                 id: this.authId,
                 status: "CREATED",
-                amount: { currency_code: "USD", value: usd(this.ceiling) },
+                amount: { currency_code: this.currency, value: paypalValue(this.ceiling, this.currency) },
               },
             ],
           },
@@ -77,7 +88,7 @@ export class FixturePayPal implements PayPal {
     return {
       id: this.authId,
       status: this.voids ? "VOIDED" : "CREATED",
-      amount: { currency_code: "USD", value: usd(this.ceiling) },
+      amount: { currency_code: this.currency, value: paypalValue(this.ceiling, this.currency) },
     };
   }
   captureDetails: { invoice_id: string; note_to_payer: string } | undefined;
@@ -86,7 +97,9 @@ export class FixturePayPal implements PayPal {
     amount: number,
     _key?: string,
     details?: { invoice_id: string; note_to_payer: string },
+    o: PayOptions = {},
   ) {
+    this.actedFor.push(o.merchantId);
     this.captures++;
     this.captureDetails = details;
     this.captureAmount = amount;
@@ -100,7 +113,7 @@ export class FixturePayPal implements PayPal {
     return {
       id: "CAPTURE_FIXTURE",
       status: this.pending ? "PENDING" : "COMPLETED",
-      amount: { currency_code: "USD", value: usd(this.captureAmount) },
+      amount: { currency_code: this.currency, value: paypalValue(this.captureAmount, this.currency) },
       payee: { merchant_id: this.merchant },
       supplementary_data: { related_ids: { authorization_id: this.authId } },
     };
@@ -118,7 +131,7 @@ export class FixturePayPal implements PayPal {
     return {
       id: "REFUND_FIXTURE",
       status: "COMPLETED",
-      amount: { currency_code: "USD", value: usd(this.refundAmount) },
+      amount: { currency_code: this.currency, value: paypalValue(this.refundAmount, this.currency) },
       links: [
         {
           rel: "up",
@@ -128,8 +141,27 @@ export class FixturePayPal implements PayPal {
       ],
     };
   }
+  async getDispute(id: string) {
+    const d = this.disputes[id];
+    if (!d) throw new Problem(422, "paypal_rejected", "Unknown dispute");
+    return d;
+  }
+  async createPartnerReferral(trackingId: string) {
+    this.referrals++;
+    return {
+      links: [
+        { rel: "self", href: "https://api-m.sandbox.paypal.com/v2/customer/partner-referrals/REF" },
+        { rel: "action_url", href: "https://www.sandbox.paypal.com/bizsignup/partner/entry?referralToken=" + trackingId.slice(0, 8) },
+      ],
+    };
+  }
+  async getMerchantIntegration(merchantId: string) {
+    const m = this.integrations[merchantId];
+    if (!m) throw new Problem(422, "paypal_rejected", "Unknown merchant");
+    return m;
+  }
   async verifyWebhook() {
-    return false;
+    return this.webhookValid;
   }
 }
 export const fixtureModel: Model = {
@@ -323,12 +355,12 @@ export async function harness(
     }
     return response;
   }
-  async function setup(unitCount = 10) {
+  async function setup(unitCount = 10, currency: Currency = "USD") {
     const created = await request("/v1/batches", {
       buyer_id: buyer,
       unit_count: unitCount,
       unit_price_minor: 500,
-      currency: "USD",
+      currency,
       prompt: "A small blue bird flying over a quiet green forest",
     });
     if (created.statusCode !== 200) throw new Error(created.body);

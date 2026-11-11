@@ -9,7 +9,13 @@ import type { Json, Service } from "../domain/contracts.js";
 // written in the same database transaction as the state change, retried with backoff,
 // and delivered at least once. Consumers dedupe on the event `id`.
 export const WEBHOOK_TARGET = "merchant";
-export type WebhookEvent = "clip.recovered" | "batch.settled" | "batch.voided";
+export type WebhookEvent =
+  | "clip.recovered"
+  | "batch.settled"
+  | "batch.voided"
+  | "dispute.opened"
+  | "dispute.updated"
+  | "dispute.resolved";
 
 function target() {
   const raw = process.env.MERCHANT_WEBHOOK_URL ?? "";

@@ -1,0 +1,29 @@
+# Public front door on the VM. Caddy obtains and renews the TLS certificate itself.
+# ASSAY_DOMAIN is e.g. assay-34-120-10-5.sslip.io (free DNS that resolves to the VM IP)
+# or your own domain pointed at the VM's static IP.
+{$ASSAY_DOMAIN} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	request_body {
+		max_size 1MB
+	}
+	# PayPal's signed webhooks go straight to Payments, which verifies them with PayPal.
+	handle /v1/paypal/webhooks {
+		reverse_proxy payments:4104
+	}
+	# The merchant API (API keys), PayPal return pages, statements and the public
+	# PayPal button configuration.
+	handle /v1/* {
+		reverse_proxy commerce:4100
+	}
+	handle /openapi.json {
+		reverse_proxy commerce:4100
+	}
+	# Everything else: the web app and its session gateway.
+	handle {
+		reverse_proxy web:4300
+	}
+}

@@ -121,6 +121,9 @@ services:
       AUTO_ARCHIVE_TASKS: ${AUTO_ARCHIVE_TASKS:-true}
       MERCHANT_WEBHOOK_URL: ${MERCHANT_WEBHOOK_URL:-}
       MERCHANT_WEBHOOK_SECRET: ${MERCHANT_WEBHOOK_SECRET:-}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      SIGNUP_MODE: ${SIGNUP_MODE:-closed}
+      SIGNUP_INVITE_CODE: ${SIGNUP_INVITE_CODE:-}
       SERVICE_PRIVATE_KEY: ${COMMERCE_PRIVATE_KEY}
       DATABASE_URL: postgresql://runtime:${COMMERCE_RUNTIME_PASSWORD}@commerce-db/commerce
     ports: ["127.0.0.1:${COMMERCE_HOST_PORT:-4100}:4100"]
@@ -152,6 +155,9 @@ services:
       REPORTED_OUTPUT_HOSTS: ${REPORTED_OUTPUT_HOSTS:-}
       MEDIA_VERIFIER_URL: http://verifier:4105
       MEDIA_VERIFIER_TOKEN: ${MEDIA_VERIFIER_TOKEN}
+      ARTIFACT_STORE: ${ARTIFACT_STORE:-local}
+      GCS_BUCKET: ${GCS_BUCKET:-}
+      GCS_PREFIX: ${GCS_PREFIX:-artifacts/}
     networks: [default, verifier-net]
     volumes: ["artifacts:/app/artifacts"]
     ports: ["127.0.0.1:${DELIVERY_HOST_PORT:-4102}:4102"]
@@ -201,6 +207,11 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       NVIDIA_MODEL: ${NVIDIA_MODEL:-nvidia/nemotron-3.5-super-vl-120b-a12b}
+      AI_PRIMARY: ${AI_PRIMARY:-gemini}
+      VERTEX_PROJECT: ${VERTEX_PROJECT:-}
+      VERTEX_LOCATION: ${VERTEX_LOCATION:-global}
+      VERTEX_MODEL: ${VERTEX_MODEL:-}
+      VERTEX_CREDITS_CONFIRMED: ${VERTEX_CREDITS_CONFIRMED:-false}
     depends_on: { investigation-db: { condition: service_healthy } }
   payments:
     <<: *common
@@ -216,6 +227,8 @@ services:
       PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
       PAYPAL_RETURN_URL: ${PAYPAL_RETURN_URL:-http://localhost:4100/v1/paypal/return}
       PAYPAL_CANCEL_URL: ${PAYPAL_CANCEL_URL:-http://localhost:4100/v1/paypal/cancel}
+      PAYPAL_PARTNER_MODE: ${PAYPAL_PARTNER_MODE:-false}
+      PAYPAL_PARTNER_ATTRIBUTION_ID: ${PAYPAL_PARTNER_ATTRIBUTION_ID:-}
     ports: ["127.0.0.1:${PAYMENTS_HOST_PORT:-4104}:4104"]
     depends_on: { payments-db: { condition: service_healthy } }
 volumes:

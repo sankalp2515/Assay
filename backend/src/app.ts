@@ -7,6 +7,7 @@ import { investigationRoutes } from "./services/investigation.js";
 import { paymentRoutes } from "./services/payments.js";
 import { operationsRoutes } from "./core/operations.js";
 import { experienceRoutes } from "./services/experience.js";
+import { accountRoutes } from "./services/accounts.js";
 export async function createApp(ctx: Context) {
   const app = await foundation(ctx);
   operationsRoutes(app, ctx);
@@ -17,7 +18,10 @@ export async function createApp(ctx: Context) {
     investigation: investigationRoutes,
     payments: paymentRoutes,
   })[ctx.name](app, ctx);
-  if (ctx.name === "commerce") experienceRoutes(app, ctx);
+  if (ctx.name === "commerce") {
+    experienceRoutes(app, ctx);
+    accountRoutes(app, ctx);
+  }
   await app.ready();
   return app;
 }

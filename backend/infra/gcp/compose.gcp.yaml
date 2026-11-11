@@ -1,0 +1,71 @@
+# Hosted Sandbox deployment on one Google Compute Engine VM. Layered on the tested local
+# topology (five services, five PostgreSQL databases, isolated verifier):
+#   docker compose --env-file .local/compose.env \
+#     -f infra/compose.yaml -f infra/gcp/compose.gcp.yaml up --build -d
+# Adds the web gateway (with its own database) and Caddy for TLS on 80/443.
+# Everything else stays on the private compose network.
+services:
+  commerce:
+    environment:
+      BUYER_RETURN_BASE: https://${ASSAY_DOMAIN:?Set ASSAY_DOMAIN}
+  payments:
+    environment:
+      PAYPAL_RETURN_URL: https://${ASSAY_DOMAIN}/v1/paypal/return
+      PAYPAL_CANCEL_URL: https://${ASSAY_DOMAIN}/v1/paypal/cancel
+  delivery:
+    environment:
+      # Originals go to the private bucket; the VM's service account writes them.
+      ARTIFACT_STORE: gcs
+      GCS_BUCKET: ${GCS_BUCKET:?Set GCS_BUCKET}
+  web-db:
+    image: postgres:18-bookworm
+    environment: { POSTGRES_PASSWORD: "${WEB_DB_PASSWORD}", POSTGRES_DB: web }
+    volumes:
+      [
+        "web-db:/var/lib/postgresql",
+        "../.local/init/web.sql:/docker-entrypoint-initdb.d/001.sql:ro",
+      ]
+    healthcheck:
+      { test: [CMD-SHELL, "pg_isready -U postgres -d web"], interval: 5s, retries: 12 }
+    restart: unless-stopped
+  web:
+    build: { context: ../.., dockerfile: backend/infra/gcp/Dockerfile.web }
+    environment:
+      WEB_ORIGIN: https://${ASSAY_DOMAIN}
+      WEB_TENANT_ID: ${TENANT_ID}
+      WEB_DATABASE_URL: postgresql://runtime:${WEB_RUNTIME_PASSWORD}@web-db/web
+      WEB_PRIVATE_KEY: ${WEB_PRIVATE_KEY}
+      PUBLIC_KEYS: ${PUBLIC_KEYS}
+      WEB_MEMBERS_JSON: ${WEB_MEMBERS_JSON:?Set demo members}
+      WEB_MERCHANT_NAME: ${WEB_MERCHANT_NAME:-Demo merchant (Sandbox)}
+      WEB_DEMO_LOGIN: ${WEB_DEMO_LOGIN:-true}
+      WEB_COMMERCE_URL: http://commerce:4100
+      WEB_DELIVERY_URL: http://delivery:4102
+      WEB_OIDC_ISSUER: ${WEB_OIDC_ISSUER:-}
+      WEB_OIDC_CLIENT_ID: ${WEB_OIDC_CLIENT_ID:-}
+      WEB_OIDC_CLIENT_SECRET: ${WEB_OIDC_CLIENT_SECRET:-}
+      WEB_OIDC_AUTHORIZATION_ENDPOINT: ${WEB_OIDC_AUTHORIZATION_ENDPOINT:-}
+      WEB_OIDC_TOKEN_ENDPOINT: ${WEB_OIDC_TOKEN_ENDPOINT:-}
+      WEB_OIDC_JWKS_URI: ${WEB_OIDC_JWKS_URI:-}
+    read_only: true
+    tmpfs: ["/tmp:size=32m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+    depends_on:
+      web-db: { condition: service_healthy }
+      commerce: { condition: service_healthy }
+  caddy:
+    image: caddy:2.10-alpine
+    environment: { ASSAY_DOMAIN: "${ASSAY_DOMAIN}" }
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./gcp/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    depends_on: [web, commerce, payments]
+volumes:
+  web-db:
+  caddy-data:
+  caddy-config:

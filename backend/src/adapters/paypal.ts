@@ -1,9 +1,10 @@
-import type { PayPal } from "../core/context.js";
+import type { PayPal, PayOptions } from "../core/context.js";
 import { Problem, unavailable } from "../core/errors.js";
 import { withBatch } from "../core/buyer-return.js";
 import type { Json } from "../domain/contracts.js";
+import { paypalValue, sameMoney, type Currency } from "../domain/money.js";
 const base = "https://api-m.sandbox.paypal.com";
-export const usd = (minor: number) => (minor / 100).toFixed(2);
+export const usd = (minor: number) => paypalValue(minor, "USD");
 export function refundReferencesCapture(resource: Json, captureId: string) {
   const links = resource.links;
   if (!Array.isArray(links)) return false;
@@ -47,10 +48,16 @@ export class PayPalSandbox implements PayPal {
       webhookId: string;
       returnUrl: string;
       cancelUrl: string;
+      // Partner attribution (BN code) sent on calls made for connected merchants.
+      partnerAttributionId?: string;
     },
     private network: typeof fetch = fetch,
   ) {
     this.available = !!(config.clientId && config.secret && config.merchantId);
+  }
+  // Public by design: the PayPal JS SDK needs it in the buyer's browser.
+  get clientId() {
+    return this.config.clientId;
   }
   private async oauth() {
     if (!this.available) throw unavailable("PayPal Sandbox");
@@ -85,11 +92,23 @@ export class PayPalSandbox implements PayPal {
       token_expires_at: new Date(this.access!.until).toISOString(),
     };
   }
+  // For a merchant connected through partner onboarding, the platform acts on the
+  // merchant's behalf with PayPal-Auth-Assertion. The platform's own account needs none.
+  private actingFor(merchantId?: string): Record<string, string> {
+    if (!merchantId || merchantId === this.config.merchantId) return {};
+    return {
+      "PayPal-Auth-Assertion": authAssertion(this.config.clientId, merchantId),
+      ...(this.config.partnerAttributionId
+        ? { "PayPal-Partner-Attribution-Id": this.config.partnerAttributionId }
+        : {}),
+    };
+  }
   private async request(
     path: string,
     method = "GET",
     body?: Json,
     key?: string,
+    merchantId?: string,
   ): Promise<Json> {
     const r = await this.network(base + path, {
       method,
@@ -97,6 +116,7 @@ export class PayPalSandbox implements PayPal {
         authorization: "Bearer " + (await this.oauth()),
         "content-type": "application/json",
         ...(key ? { "PayPal-Request-Id": key } : {}),
+        ...this.actingFor(merchantId),
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
       signal: AbortSignal.timeout(20000),
@@ -110,7 +130,11 @@ export class PayPalSandbox implements PayPal {
       );
     return r.status === 204 ? { status: "VOIDED" } : ((await r.json()) as Json);
   }
-  createOrder(batchId: string, amount: number, key: string) {
+  private read(path: string, o: PayOptions = {}) {
+    return this.request(path, "GET", undefined, undefined, o.merchantId);
+  }
+  createOrder(batchId: string, amount: number, key: string, o: PayOptions = {}) {
+    const code: Currency = o.currency ?? "USD";
     return this.request(
       "/v2/checkout/orders",
       "POST",
@@ -120,8 +144,8 @@ export class PayPalSandbox implements PayPal {
           {
             reference_id: batchId,
             custom_id: batchId,
-            payee: { merchant_id: this.config.merchantId },
-            amount: { currency_code: "USD", value: usd(amount) },
+            payee: { merchant_id: o.merchantId ?? this.config.merchantId },
+            amount: { currency_code: code, value: paypalValue(amount, code) },
           },
         ],
         payment_source: {
@@ -135,35 +159,37 @@ export class PayPalSandbox implements PayPal {
         },
       },
       key,
+      o.merchantId,
     );
   }
-  authorizeOrder(orderId: string, key: string) {
+  authorizeOrder(orderId: string, key: string, o: PayOptions = {}) {
     return this.request(
       "/v2/checkout/orders/" + encodeURIComponent(orderId) + "/authorize",
       "POST",
       {},
       key,
+      o.merchantId,
     );
   }
-  getOrder(id: string) {
-    return this.request("/v2/checkout/orders/" + encodeURIComponent(id));
+  getOrder(id: string, o: PayOptions = {}) {
+    return this.read("/v2/checkout/orders/" + encodeURIComponent(id), o);
   }
-  getAuthorization(id: string) {
-    return this.request(
-      "/v2/payments/authorizations/" + encodeURIComponent(id),
-    );
+  getAuthorization(id: string, o: PayOptions = {}) {
+    return this.read("/v2/payments/authorizations/" + encodeURIComponent(id), o);
   }
   capture(
     authId: string,
     amount: number,
     key: string,
     details?: { invoice_id: string; note_to_payer: string },
+    o: PayOptions = {},
   ) {
+    const code: Currency = o.currency ?? "USD";
     return this.request(
       "/v2/payments/authorizations/" + encodeURIComponent(authId) + "/capture",
       "POST",
       {
-        amount: { currency_code: "USD", value: usd(amount) },
+        amount: { currency_code: code, value: paypalValue(amount, code) },
         final_capture: true,
         // The buyer's PayPal record carries the delivery summary and statement reference.
         ...(details
@@ -174,29 +200,69 @@ export class PayPalSandbox implements PayPal {
           : {}),
       },
       key,
+      o.merchantId,
     );
   }
-  getCapture(id: string) {
-    return this.request("/v2/payments/captures/" + encodeURIComponent(id));
+  getCapture(id: string, o: PayOptions = {}) {
+    return this.read("/v2/payments/captures/" + encodeURIComponent(id), o);
   }
-  void(authId: string, key: string) {
+  void(authId: string, key: string, o: PayOptions = {}) {
     return this.request(
       "/v2/payments/authorizations/" + encodeURIComponent(authId) + "/void",
       "POST",
       {},
       key,
+      o.merchantId,
     );
   }
-  refund(captureId: string, amount: number, key: string) {
+  refund(captureId: string, amount: number, key: string, o: PayOptions = {}) {
+    const code: Currency = o.currency ?? "USD";
     return this.request(
       "/v2/payments/captures/" + encodeURIComponent(captureId) + "/refund",
       "POST",
-      { amount: { currency_code: "USD", value: usd(amount) } },
+      { amount: { currency_code: code, value: paypalValue(amount, code) } },
       key,
+      o.merchantId,
     );
   }
-  getRefund(id: string) {
-    return this.request("/v2/payments/refunds/" + encodeURIComponent(id));
+  getRefund(id: string, o: PayOptions = {}) {
+    return this.read("/v2/payments/refunds/" + encodeURIComponent(id), o);
+  }
+  getDispute(id: string, o: PayOptions = {}) {
+    return this.read("/v1/customer/disputes/" + encodeURIComponent(id), o);
+  }
+  // Partner onboarding: a sign-up link that lets a merchant connect their own PayPal
+  // business account and grant this platform permission to take payments for them.
+  createPartnerReferral(trackingId: string, returnUrl: string) {
+    return this.request("/v2/customer/partner-referrals", "POST", {
+      tracking_id: trackingId,
+      operations: [
+        {
+          operation: "API_INTEGRATION",
+          api_integration_preference: {
+            rest_api_integration: {
+              integration_method: "PAYPAL",
+              integration_type: "THIRD_PARTY",
+              third_party_details: {
+                features: ["PAYMENT", "REFUND", "READ_SELLER_DISPUTE"],
+              },
+            },
+          },
+        },
+      ],
+      products: ["EXPRESS_CHECKOUT"],
+      legal_consents: [{ type: "SHARE_DATA_CONSENT", granted: true }],
+      partner_config_override: { return_url: returnUrl },
+    });
+  }
+  // Read-back of a connected merchant's status. The onboarding redirect is never trusted.
+  getMerchantIntegration(merchantId: string) {
+    return this.read(
+      "/v1/customer/partners/" +
+        encodeURIComponent(this.config.merchantId) +
+        "/merchant-integrations/" +
+        encodeURIComponent(merchantId),
+    );
   }
   async verifyWebhook(headers: Record<string, string>, event: Json) {
     if (!this.config.webhookId) return false;
@@ -216,18 +282,20 @@ export class PayPalSandbox implements PayPal {
     return d.verification_status === "SUCCESS";
   }
 }
+// Unsigned JWT that PayPal accepts as "acting for this merchant" from a partner app.
+export function authAssertion(clientId: string, merchantId: string) {
+  const b = (v: object) => Buffer.from(JSON.stringify(v)).toString("base64url");
+  return b({ alg: "none" }) + "." + b({ iss: clientId, payer_id: merchantId }) + ".";
+}
 export function verifyMoney(
   resource: Json,
   expected: number,
   merchant: string,
+  code: Currency = "USD",
 ) {
   const amount = resource.amount as
     | { currency_code?: string; value?: string }
     | undefined;
   const payee = resource.payee as { merchant_id?: string } | undefined;
-  return (
-    amount?.currency_code === "USD" &&
-    amount.value === usd(expected) &&
-    payee?.merchant_id === merchant
-  );
+  return sameMoney(amount, expected, code) && payee?.merchant_id === merchant;
 }

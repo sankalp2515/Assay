@@ -8,6 +8,8 @@ import { Problem, requireThat } from "./errors.js";
 import type { Context } from "./context.js";
 import type { Json } from "../domain/contracts.js";
 import { logOptions } from "./logging.js";
+import { looksLikeCredential, resolveCredential } from "./apikeys.js";
+import { registerTenant } from "./tenants.js";
 declare module "fastify" {
   interface FastifyRequest {
     actor: Actor;
@@ -42,11 +44,18 @@ export function endpoint(
       response: { 200: { type: "object", additionalProperties: true } },
     },
     preHandler: async (req) => {
-      req.actor = await authenticate(
-        req.headers.authorization,
-        ctx.identity,
-        ctx.name,
-      );
+      // Merchant API keys and buyer sessions are accepted only at Commerce, on public
+      // routes. Internal service routes still require a signed service token.
+      req.actor =
+        ctx.name === "commerce" &&
+        path.startsWith("/v1/") &&
+        looksLikeCredential(req.headers.authorization)
+          ? await resolveCredential(
+              ctx,
+              req.headers.authorization!,
+              req.url.split("?")[0]!,
+            )
+          : await authenticate(req.headers.authorization, ctx.identity, ctx.name);
       authorize(req.actor, issuers, roles);
       if (method === "POST")
         requireThat(
@@ -169,6 +178,11 @@ export async function foundation(ctx: Context) {
         return { service: ctx.name, outbox: outbox.rows };
       }),
   );
+  // Commerce announces a newly signed-up tenant so this service's worker serves it.
+  endpoint(app, ctx, "POST", "/internal/tenants", ["commerce"], undefined, async (actor) => {
+    await registerTenant(ctx, actor.tenant);
+    return { registered: actor.tenant };
+  });
   return app;
 }
 export function safeRecord(v: unknown): Json {

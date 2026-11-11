@@ -26,10 +26,14 @@ export class Database {
     await this.admin.query(
       await readFile(resolve("migrations/001_core.sql"), "utf8"),
     );
-    if (service === "payments")
+    if (service === "payments") {
       await this.admin.query(
         await readFile(resolve("migrations/002_payments.sql"), "utf8"),
       );
+      await this.admin.query(
+        await readFile(resolve("migrations/004_currencies.sql"), "utf8"),
+      );
+    }
     if (service === "provider" || service === "delivery")
       await this.admin.query(
         "CREATE UNIQUE INDEX IF NOT EXISTS entities_unit_once_idx ON entities(tenant_id,kind,(body->>'unit_id')) WHERE kind IN ('attempt','artifact')",

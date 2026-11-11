@@ -46,6 +46,8 @@ try {
 }
 const demo = JSON.parse(await readFile(".local/demo.json", "utf8")) as {
   tenant_id: string;
+  operator_id?: string;
+  buyer_id?: string;
 };
 const env: Record<string, string> = existing ?? {
   PUBLIC_KEYS: JSON.stringify(publicKeys),
@@ -90,12 +92,35 @@ if (!existing || process.argv.includes("--sync-integrations")) {
     "REPORTED_OUTPUT_HOSTS",
     "APPROVAL_WINDOW_SECONDS",
     "BUYER_RETURN_BASE",
+    "SIGNUP_MODE",
+    "SIGNUP_INVITE_CODE",
+    "PAYPAL_PARTNER_MODE",
+    "PAYPAL_PARTNER_ATTRIBUTION_ID",
+    "ARTIFACT_STORE",
+    "GCS_BUCKET",
+    "GCS_PREFIX",
+    "AI_PRIMARY",
+    "VERTEX_PROJECT",
+    "VERTEX_LOCATION",
+    "VERTEX_MODEL",
+    "VERTEX_CREDITS_CONFIRMED",
     "MERCHANT_WEBHOOK_URL",
     "MERCHANT_WEBHOOK_SECRET",
   ])
     if (process.env[key] !== undefined) env[key] = process.env[key]!;
 
 }
+// The hosted web gateway (infra/gcp) keeps sessions in its own database and signs as
+// "operator". Credentials are added once and kept on later runs.
+env.WEB_DB_PASSWORD ??= randomBytes(24).toString("hex");
+env.WEB_RUNTIME_PASSWORD ??= randomBytes(24).toString("hex");
+env.WEB_PRIVATE_KEY ??= await readFile(".local/keys/operator.pem", "utf8").catch(() => "");
+// Demo members for the hosted Sandbox's "Try as merchant / as buyer" sign-in.
+if (demo.operator_id && demo.buyer_id)
+  env.WEB_MEMBERS_JSON ??= JSON.stringify({
+    "demo-operator": { role: "operator", subject: demo.operator_id, name: "Demo merchant" },
+    "demo-buyer": { role: "buyer", subject: demo.buyer_id, name: "Demo buyer" },
+  });
 // The key list is public and derived; rebuild it so an earlier mis-escaped copy can't persist.
 env.PUBLIC_KEYS = JSON.stringify(publicKeys);
 for (const service of services) {
@@ -114,11 +139,12 @@ await mkdir(".local/init", { recursive: true, mode: 0o700 });
 const core = await readFile("migrations/001_core.sql", "utf8");
 const payment = await readFile("migrations/002_payments.sql", "utf8");
 const operations = await readFile("migrations/003_operations.sql", "utf8");
+const currencies = await readFile("migrations/004_currencies.sql", "utf8");
 for (const service of services) {
   const password = env[service.toUpperCase() + "_RUNTIME_PASSWORD"]!;
   const sql =
     core +
-    (service === "payments" ? "\n" + payment : "") +
+    (service === "payments" ? "\n" + payment + "\n" + currencies : "") +
     "\n" +
     operations +
     `\nCREATE ROLE runtime LOGIN PASSWORD '${password}' NOSUPERUSER NOBYPASSRLS NOINHERIT;\nGRANT app_runtime TO runtime;\nREVOKE CREATE ON SCHEMA public FROM PUBLIC;\nREVOKE CONNECT ON DATABASE ${service} FROM PUBLIC;\nGRANT CONNECT ON DATABASE ${service} TO runtime;\n` +
@@ -127,6 +153,20 @@ for (const service of services) {
       : "");
   await writeFile(".local/init/" + service + ".sql", sql, { mode: 0o600 });
 }
+await writeFile(
+  ".local/init/web.sql",
+  core +
+    "\n" +
+    operations +
+    `
+CREATE ROLE runtime LOGIN PASSWORD '${env.WEB_RUNTIME_PASSWORD}' NOSUPERUSER NOBYPASSRLS NOINHERIT;
+GRANT app_runtime TO runtime;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+REVOKE CONNECT ON DATABASE web FROM PUBLIC;
+GRANT CONNECT ON DATABASE web TO runtime;
+`,
+  { mode: 0o600 },
+);
 console.log(
   "Wrote private configuration and database initialization SQL. Database/service credentials preserved; external integrations change only with explicit --sync-integrations.",
 );

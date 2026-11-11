@@ -14,9 +14,11 @@ You keep your provider, your prompts and your generation code. Assay sits beside
 | PayPal business account (Sandbox first) with partial capture enabled | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_MERCHANT_ID` |
 | Your provider, one of the three supported sources | Runway: `RUNWAY_API_KEY`. Replicate: `REPLICATE_API_TOKEN`. Anything else (fal, Veo, Luma, Kling, self-hosted): list your output hosts in `REPORTED_OUTPUT_HOSTS` |
 | Free-tier AI key for investigation and buyer-message reading | `GEMINI_API_KEY` (Groq and NVIDIA optional fallbacks) |
-| An operator signing key | `npm run provision` creates one; production uses OIDC through the web gateway |
+| An API key | `POST /v1/signup` on a deployment with sign-up open returns your first key once, or the operator provisions your tenant. Create an `integration` key for workers that should never approve money. Send it as `Authorization: Bearer assay_sk_…` from your server only |
 
 Assay never generates on Replicate or a reported provider. It only reads the task you registered. On Runway, generation from Assay is off unless `ALLOW_PAID_INFERENCE=true` and capped.
+
+The `@assay/node` SDK in `backend/sdk` wraps every call below, requires idempotency keys and verifies webhooks.
 
 ## Step 1: open a batch when the buyer checks out
 
@@ -27,7 +29,7 @@ Idempotency-Key: order-8812
   "prompt": "Ten 5-second clips of a quiet coastline at dawn" }
 ```
 
-The buyer then accepts the immutable contract and approves PayPal for the ceiling ($50 here):
+`currency` can be USD, EUR, GBP, CAD, AUD or JPY. For the buyer's browser, mint a 30-minute token for this buyer and batch with `POST /v1/buyer-sessions {batch_id, buyer_id}`. The buyer then accepts the immutable contract and approves PayPal for the ceiling ($50 here):
 
 ```http
 POST /v1/batches/{id}/consent            (buyer)  { "contract_hash": "…" }
@@ -88,6 +90,7 @@ Set `MERCHANT_WEBHOOK_URL` (https) and `MERCHANT_WEBHOOK_SECRET` (32+ characters
 | `clip.recovered` | An original was restored instead of re-rendered |
 | `batch.settled` | PayPal confirmed the one capture (amount, clips charged of total, statement path) |
 | `batch.voided` | Nothing qualified; the authorization was voided |
+| `dispute.opened` / `dispute.updated` / `dispute.resolved` | PayPal reported a dispute on the capture. Refunds pause while it is open; `GET /v1/batches/{id}/disputes` has the signed statement to attach |
 
 Each request has the headers `Assay-Event-Id`, `Assay-Event-Type` and `Assay-Signature: t=<unix>,v1=<hex>`. The `v1` value is HMAC-SHA256 of `<t>.<raw body>` with your secret. Verify it, reject timestamps older than 5 minutes, and dedupe on the event `id`. Delivery is at least once:
 
@@ -105,8 +108,8 @@ Each request has the headers `Assay-Event-Id`, `Assay-Event-Type` and `Assay-Sig
   - AI never sets an amount, approves, or moves money.
 - **Your responsibility:** registering tasks when you submit them (step 2) and keeping `REPORTED_OUTPUT_HOSTS` tight.
 - **Not yet available:**
-  - Self-serve signup and API keys; tenants are provisioned by the operator today.
-  - A packaged SDK.
-  - Hosted multi-tenant service.
+  - A hosted service. [DEPLOY.md](DEPLOY.md) is the plan.
+  - The SDK on npm.
+  - Real PayPal partner approval, which a deployment where each merchant connects their own PayPal account needs.
 
   See [product/REAL_USER_READINESS.md](../../product/REAL_USER_READINESS.md).

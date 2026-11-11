@@ -1,6 +1,5 @@
-import { rm } from "node:fs/promises";
-import { join } from "node:path";
 import type { Context } from "./context.js";
+import { LocalStore } from "../adapters/storage.js";
 import { uuid, now, type Json, type Operation } from "../domain/contracts.js";
 export async function maintain(ctx: Context, tenant: string) {
   if (ctx.name === "commerce") {
@@ -82,7 +81,7 @@ export async function maintain(ctx: Context, tenant: string) {
       )
         continue;
       const key = uuid.parse(artifact.id);
-      await rm(join(ctx.artifactDir, key + ".mp4"), { force: true });
+      await (ctx.store ?? new LocalStore(ctx.artifactDir)).remove(key);
       await ctx.db.mutate(tenant, "artifact", key, async (old) => ({
         ...old,
         state: "EXPIRED",

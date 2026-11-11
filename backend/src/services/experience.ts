@@ -333,13 +333,25 @@ export function experienceRoutes(app: FastifyInstance, ctx: Context) {
         const b = batches.get(String(p.batch_id));
         return p.state === "CLAIMED" && b?.state === "CLOSED" && b.proposal_id === p.id;
       }) as Permit[];
-      const charged = settled
-        .filter((p) => p.action === "CAPTURE")
-        .reduce((s, p) => s + p.amount_minor, 0);
-      const authorized = settled.reduce(
-        (s, p) => s + Number(batches.get(p.batch_id)?.ceiling_minor ?? 0),
-        0,
-      );
+      // Money is never summed across currencies. Top-level totals are USD; every
+      // currency (USD included) also appears under by_currency.
+      const cur = (batchId: unknown) => String(batches.get(String(batchId))?.currency ?? "USD");
+      const by_currency: Record<string, { settled_batches: number; authorized_minor: number; charged_minor: number; never_taken_minor: number; recovered_clip_list_value_minor: number }> = {};
+      const bucket = (c: string) =>
+        (by_currency[c] ??= { settled_batches: 0, authorized_minor: 0, charged_minor: 0, never_taken_minor: 0, recovered_clip_list_value_minor: 0 });
+      for (const p of settled) {
+        const b = bucket(cur(p.batch_id));
+        const ceiling = Number(batches.get(p.batch_id)?.ceiling_minor ?? 0);
+        const take = p.action === "CAPTURE" ? p.amount_minor : 0;
+        b.settled_batches++;
+        b.authorized_minor += ceiling;
+        b.charged_minor += take;
+        b.never_taken_minor += ceiling - take;
+      }
+      for (const r of recoveries) bucket(cur(r.batch_id)).recovered_clip_list_value_minor += Number(r.unit_price_minor ?? 0);
+      const usd = by_currency.USD ?? { settled_batches: 0, authorized_minor: 0, charged_minor: 0, never_taken_minor: 0, recovered_clip_list_value_minor: 0 };
+      const charged = usd.charged_minor;
+      const authorized = usd.authorized_minor;
       const cases = of("support_case");
       const read = cases.filter((c) => (c.reading as Json | undefined)?.state === "READ");
       const outcomes: Record<string, number> = {};
@@ -348,16 +360,13 @@ export function experienceRoutes(app: FastifyInstance, ctx: Context) {
           outcomes[String(r.outcome)] = (outcomes[String(r.outcome)] ?? 0) + 1;
       return {
         clips_recovered_without_rerender: recoveries.length,
-        recovered_clip_list_value_minor: recoveries.reduce(
-          (s, r) => s + Number(r.unit_price_minor ?? 0),
-          0,
-        ),
+        recovered_clip_list_value_minor: usd.recovered_clip_list_value_minor,
         estimated_rerender_cost_avoided_minor: recoveries.reduce(
           (s, r) => s + Number(r.rerender_cost_minor ?? 0),
           0,
         ),
         rerender_cost_basis: "merchant-configured PROVIDER_RERENDER_COST_MINOR per clip; estimate",
-        settled_batches: settled.length,
+        settled_batches: usd.settled_batches,
         authorized_minor: authorized,
         charged_minor: charged,
         never_taken_minor: authorized - charged,
@@ -365,6 +374,7 @@ export function experienceRoutes(app: FastifyInstance, ctx: Context) {
         buyer_messages_read_by_ai: read.length,
         buyer_message_outcomes: outcomes,
         currency: "USD",
+        by_currency,
         limit: 5000,
       };
     },

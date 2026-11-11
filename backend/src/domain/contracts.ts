@@ -29,13 +29,14 @@ export const stableId = (v: unknown) => {
   const h = digest(v);
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
 };
+import { currency, type Currency } from "./money.js";
 export const uuid = z.uuid();
 export const minor = z.number().int().min(1).max(100_000);
 export const batchInput = z.strictObject({
   buyer_id: uuid,
   unit_count: z.number().int().min(1).max(10),
   unit_price_minor: minor,
-  currency: z.literal("USD"),
+  currency,
   prompt: z.string().min(5).max(2000),
   title: z.string().min(1).max(100).optional(),
 });
@@ -89,7 +90,7 @@ export type Batch = Json & {
   id: string;
   buyer_id: string;
   units: Unit[];
-  currency: "USD";
+  currency: Currency;
   ceiling_minor: number;
   prompt: string;
   contract_hash: string;
@@ -112,7 +113,7 @@ export type Permit = Json & {
   batch_version: number;
   unit_ids: string[];
   amount_minor: number;
-  currency: "USD";
+  currency: Currency;
   assessment_id: string;
   snapshot_hash: string;
   verification_ids: string[];
@@ -128,7 +129,7 @@ export type Operation = Json & {
   kind: string;
   state: string;
   amount_minor: number;
-  currency: "USD";
+  currency: Currency;
   request_key: string;
   provider_id?: string;
   capture_id?: string;

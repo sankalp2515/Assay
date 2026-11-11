@@ -1,4 +1,5 @@
-import { GeminiInvestigator } from "./gemini.js";
+import { GeminiInvestigator, VertexGemini } from "./gemini.js";
+import { googleAccessToken } from "./google.js";
 import type { Model } from "../core/context.js";
 import type { Evidence, Json } from "../domain/contracts.js";
 import { unavailable } from "../core/errors.js";
@@ -138,12 +139,26 @@ export function configuredInvestigator(env: NodeJS.ProcessEnv): Model {
     .filter(Boolean);
   if (
     new Set(requested).size !== requested.length ||
-    requested.some((p) => !["groq", "nvidia"].includes(p))
+    requested.some((p) => !["groq", "nvidia", "vertex"].includes(p))
   )
     throw new Error(
-      "AI_FALLBACK_PROVIDERS must list groq,nvidia without duplicates",
+      "AI_FALLBACK_PROVIDERS must list groq, nvidia or vertex without duplicates",
     );
+  // Vertex spends Google Cloud credits, so it is admitted only on explicit confirmation,
+  // even when AI_ZERO_COST_ONLY=false. AI_PRIMARY=vertex puts it ahead of the free key.
+  const vertex = () =>
+    new VertexGemini(
+      env.VERTEX_CREDITS_CONFIRMED === "true" ? (env.VERTEX_PROJECT ?? "") : "",
+      env.VERTEX_LOCATION ?? "global",
+      env.VERTEX_MODEL ?? env.GEMINI_MODEL ?? "gemini-3.1-flash-lite",
+      () => googleAccessToken(),
+    );
+  if (env.AI_PRIMARY === "vertex") candidates.unshift({ name: "vertex", model: vertex() });
   for (const provider of requested) {
+    if (provider === "vertex") {
+      if (env.AI_PRIMARY !== "vertex") candidates.push({ name: "vertex", model: vertex() });
+      continue;
+    }
     const model =
       provider === "groq"
         ? new HostedInvestigator(

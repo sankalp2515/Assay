@@ -27,6 +27,8 @@ const children = services.map((name, index) => {
           "PAYPAL_WEBHOOK_ID",
           "PAYPAL_RETURN_URL",
           "PAYPAL_CANCEL_URL",
+          "PAYPAL_PARTNER_MODE",
+          "PAYPAL_PARTNER_ATTRIBUTION_ID",
         ]
       : name === "investigation"
         ? [
@@ -42,6 +44,12 @@ const children = services.map((name, index) => {
             "GEMINI_API_KEY",
             "GEMINI_MODEL",
             "MAX_AI_ASSESSMENTS_PER_DAY",
+            "AI_PRIMARY",
+            "VERTEX_PROJECT",
+            "VERTEX_LOCATION",
+            "VERTEX_MODEL",
+            "VERTEX_CREDITS_CONFIRMED",
+            "GOOGLE_ACCESS_TOKEN",
           ]
         : name === "provider"
           ? [
@@ -61,6 +69,10 @@ const children = services.map((name, index) => {
                 "FFMPEG_PATH",
                 "MEDIA_VERIFIER_URL",
                 "MEDIA_VERIFIER_TOKEN",
+                "ARTIFACT_STORE",
+                "GCS_BUCKET",
+                "GCS_PREFIX",
+                "GOOGLE_ACCESS_TOKEN",
               ]
             : name === "commerce"
               ? [
@@ -71,6 +83,9 @@ const children = services.map((name, index) => {
                   "AUTO_ARCHIVE_TASKS",
                   "MERCHANT_WEBHOOK_URL",
                   "MERCHANT_WEBHOOK_SECRET",
+                  "PAYPAL_CLIENT_ID",
+                  "SIGNUP_MODE",
+                  "SIGNUP_INVITE_CODE",
                 ]
               : [];
   for (const key of specific) if (process.env[key]) env[key] = process.env[key];

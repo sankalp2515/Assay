@@ -92,6 +92,23 @@ must("task intake refuses unauthorized batch or unapproved host", [409, 422].inc
   code: reported.body.code,
 });
 
+const eur = await call("/v1/batches", "operator", { ...input, currency: "EUR", prompt: "Container smoke EUR batch" });
+must("non-USD batch accepted with its own currency", eur.status === 200 && eur.body.currency === "EUR", {
+  status: eur.status,
+  currency: eur.body.currency,
+});
+const cfg = await fetch(base + "/v1/paypal/config");
+must("public PayPal button configuration served", cfg.ok && ((await cfg.json()) as { intent: string }).intent === "authorize");
+const signup = await fetch(base + "/v1/signup", {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ merchant_name: "Smoke", email: "smoke@example.invalid" }),
+});
+must("sign-up refused while closed", signup.status === 403, signup.status);
+const badKey = await fetch(base + "/v1/account", {
+  headers: { authorization: "Bearer assay_sk_" + "0".repeat(32) + "_" + "A".repeat(43) },
+});
+must("unknown API key rejected", badKey.status === 401, badKey.status);
 const keys = await fetch(base + "/v1/statements/keys");
 must("public statement key published", keys.ok && ((await keys.json()) as { keys: unknown[] }).keys.length > 0);
 const anonymous = await fetch(base + "/v1/batches");

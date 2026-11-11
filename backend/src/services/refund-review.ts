@@ -34,6 +34,7 @@ async function basis(q: Sql, tenant: string, batchId: string) {
       kind: o.kind,
       state: o.state,
       amount_minor: o.amount_minor,
+      currency: o.currency ?? "USD",
       provider_id: o.provider_id,
     })),
   };
@@ -261,7 +262,7 @@ export function refundReviewRoutes(app: FastifyInstance, ctx: Context) {
           id: proposalId,
           ...input,
           amount_minor: units.reduce((n, u) => n + Number(u.amount_minor), 0),
-          currency: "USD",
+          currency: capture.currency ?? "USD",
           capture_id: capture.provider_id,
           basis_hash: digest(data),
           input_hash: digest(input),

@@ -141,7 +141,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     "POST",
     "/v1/batches",
     ["operator"],
-    ["operator"],
+    ["operator", "integration"],
     async (a, raw, _p, key) => {
       const b = batchInput.parse(raw);
       const units = Array.from({ length: b.unit_count }, () => ({
@@ -168,7 +168,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         id: keyId,
         buyer_id: b.buyer_id,
         units,
-        currency: "USD",
+        currency: b.currency,
         ceiling_minor: b.unit_count * b.unit_price_minor,
         prompt: b.prompt,
         ...(b.title ? {title:b.title} : {}),
@@ -192,11 +192,11 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     "GET",
     "/v1/batches/:batch",
     ["operator"],
-    ["operator", "buyer"],
+    ["operator", "integration", "buyer"],
     async (a, _b, p) => {
       const b = await batch(a.tenant, p.batch!);
       requireThat(
-        a.role === "operator" || a.subject === b.buyer_id,
+        a.role !== "buyer" || a.subject === b.buyer_id,
         "not_found",
         "Batch not found",
         404,
@@ -222,7 +222,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     "GET",
     "/v1/batches",
     ["operator"],
-    ["operator"],
+    ["operator", "integration"],
     async (a, _b, _p, _k, req) => {
       const q = z
         .object({
@@ -457,14 +457,14 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     output_url: z.string().regex(/^https:\/\/\S+$/).max(2000).optional(),
   });
   for (const path of ["/v1/batches/:batch/attempts", "/v1/batches/:batch/tasks"])
-    endpoint(app, ctx, "POST", path, ["operator"], ["operator"], registerTask, taskSchema);
+    endpoint(app, ctx, "POST", path, ["operator"], ["operator", "integration"], registerTask, taskSchema);
   endpoint(
     app,
     ctx,
     "POST",
     "/v1/batches/:batch/preserve",
     ["operator"],
-    ["operator"],
+    ["operator", "integration"],
     async (a, raw, p, key) => {
       const b = await batch(a.tenant, p.batch!);
       requireThat(
@@ -715,7 +715,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         batch_version: b.version + 1,
         unit_ids: eligible,
         amount_minor: eligibleAmount(b.units, eligible),
-        currency: "USD",
+        currency: b.currency ?? "USD",
         assessment_id: b.assessment_id,
         snapshot_hash: current.hash,
         verification_ids: [...unique.values()].map((r) => String(r.id)),
