@@ -198,6 +198,9 @@ test("demo login is off by default and, when on, signs in as the configured Sand
   const on = await make(true);
   try {
     assert.equal((await off.inject({ url: "/api/demo-login?as=operator" })).statusCode, 404);
+    const csp = String((await on.inject({ url: "/api/session" })).headers["content-security-policy"]);
+    assert.match(csp, /script-src 'self' https:\/\/www\.paypal\.com https:\/\/www\.sandbox\.paypal\.com/);
+    assert.match(csp, /frame-src https:\/\/www\.paypal\.com/);
     const r = await on.inject({ url: "/api/demo-login?as=buyer&returnTo=https://evil.example" });
     assert.equal(r.statusCode, 302);
     assert.equal(r.headers.location, "/#/batches");

@@ -121,6 +121,10 @@ test("recovery story: buyer message, restored original, $40 capture, signed stat
     // The batch itself says which clips were restored, so a reload never loses it.
     const view = (await h.request("/v1/batches/" + b.id)).json<Json>();
     assert.deepEqual(view.recovered_unit_ids, [lost[0]!.unit_id]);
+    const rec = (view.recovered as Json[])[0]!;
+    assert.equal(rec.outcome, "VERIFIED");
+    assert.match(String(rec.receipt_hash), /^[0-9a-f]{64}$/);
+    assert.equal(rec.sha256, lost[0]!.sha256);
 
     const s = await h.settle(b);
     assert.equal(s.permit.amount_minor, 4000);

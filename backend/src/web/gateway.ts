@@ -76,12 +76,15 @@ export async function createGateway(options: GatewayOptions) {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'"],
+        // PayPal JS SDK buttons (Sandbox and live hosts) load scripts, frames and calls.
+        scriptSrc: ["'self'", "https://www.paypal.com", "https://www.sandbox.paypal.com"],
+        frameSrc: ["https://www.paypal.com", "https://www.sandbox.paypal.com"],
+        childSrc: ["https://www.paypal.com", "https://www.sandbox.paypal.com"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'"],
-        imgSrc: ["'self'", "data:", "blob:"],
+        imgSrc: ["'self'", "data:", "blob:", "https://www.paypalobjects.com", "https://t.paypal.com"],
         mediaSrc: ["'self'", "blob:"],
-        connectSrc: ["'self'"],
+        connectSrc: ["'self'", "https://www.paypal.com", "https://www.sandbox.paypal.com"],
         frameAncestors: ["'none'"],
         formAction: ["'self'"],
       },

@@ -216,6 +216,8 @@ export function accountRoutes(app: FastifyInstance, ctx: Context) {
       client_id: process.env.PAYPAL_CLIENT_ID || null,
       environment: "sandbox",
       intent: "authorize",
+      // Default only; the SDK must load with the batch's own currency (batch.currency).
+      currency: "USD",
       currencies: CURRENCIES,
       create_order: "POST /v1/batches/{id}/paypal/order",
       on_approve: "POST /v1/batches/{id}/paypal/authorize",

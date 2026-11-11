@@ -208,6 +208,9 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         unit_id: String(r.unit_id),
         artifact_id: String(r.artifact_id),
         recovered_at: String(r.recovered_at),
+        outcome: r.outcome ?? null,
+        receipt_hash: r.receipt_hash ?? null,
+        sha256: r.sha256 ?? null,
       }));
       return {
         ...visible,
@@ -633,6 +636,10 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
             artifact_id: input.artifact_id,
             assessment_id: input.assessment_id,
             unit_price_minor: unit?.price_minor ?? 0,
+            // The buyer-route check that made the restored clip retrievable.
+            outcome: typeof receipt.outcome === "string" ? receipt.outcome : null,
+            receipt_hash: typeof receipt.receipt_hash === "string" ? receipt.receipt_hash : null,
+            sha256: typeof receipt.sha256 === "string" ? receipt.sha256 : (artifact.sha256 ?? null),
             rerender_cost_minor: Math.max(
               0,
               Math.min(100_000, Number(process.env.PROVIDER_RERENDER_COST_MINOR ?? 0) || 0),
