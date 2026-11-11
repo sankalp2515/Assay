@@ -1,0 +1,371 @@
+{
+  "at": "2026-11-07T20:57:47.488Z",
+  "fixture_sha256": "777dc8f656b25462562cba455537815e380ebf743096f268fd958d3c3f59890f",
+  "cases": 20,
+  "provenance": "actual Gemini, frozen synthetic incidents, automated scoring",
+  "baseline_correct": 20,
+  "ai_correct": 17,
+  "ai_unavailable_or_invalid": 1,
+  "unsupported_restore": 0,
+  "limitations": [
+    "Synthetic authored cases, no merchant data",
+    "Exact single target action scored",
+    "Both arms receive the same snapshot facts; no live tool calls",
+    "Literal citation validation is not human semantic grading",
+    "Operator time and cost benefit unmeasured",
+    "No monetary writes"
+  ],
+  "results": [
+    {
+      "id": "H01",
+      "expected": "RESTORE_ACCESS",
+      "baseline": "RESTORE_ACCESS",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "RESTORE_ACCESS",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "RECOVER_EXISTING",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2651
+    },
+    {
+      "id": "H02",
+      "expected": "RESTORE_ACCESS",
+      "baseline": "RESTORE_ACCESS",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "RESTORE_ACCESS",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "RECOVER_EXISTING",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2409
+    },
+    {
+      "id": "H03",
+      "expected": "NO_ACTION",
+      "baseline": "NO_ACTION",
+      "baseline_correct": true,
+      "ai_correct": false,
+      "status": "provider_or_validation_error",
+      "latency_ms": 2226
+    },
+    {
+      "id": "H04",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "ESCALATE",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2234
+    },
+    {
+      "id": "H05",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "ESCALATE",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2706
+    },
+    {
+      "id": "H06",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "ESCALATE",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2536
+    },
+    {
+      "id": "H07",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": false,
+      "ai_actions": [
+        {
+          "kind": "NO_ACTION",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "READY_TO_CLOSE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2314
+    },
+    {
+      "id": "H08",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "ESCALATE",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2347
+    },
+    {
+      "id": "H09",
+      "expected": "LOOKUP_TASK",
+      "baseline": "LOOKUP_TASK",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "LOOKUP_TASK",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2272
+    },
+    {
+      "id": "H10",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "ESCALATE",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2580
+    },
+    {
+      "id": "H11",
+      "expected": "RESTORE_ACCESS",
+      "baseline": "RESTORE_ACCESS",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "RESTORE_ACCESS",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "RECOVER_EXISTING",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2569
+    },
+    {
+      "id": "H12",
+      "expected": "NO_ACTION",
+      "baseline": "NO_ACTION",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "NO_ACTION",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "READY_TO_CLOSE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1979
+    },
+    {
+      "id": "H13",
+      "expected": "LOOKUP_TASK",
+      "baseline": "LOOKUP_TASK",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "LOOKUP_TASK",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2814
+    },
+    {
+      "id": "H14",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": false,
+      "ai_actions": [
+        {
+          "kind": "LOOKUP_TASK",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2374
+    },
+    {
+      "id": "H15",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "ESCALATE",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2414
+    },
+    {
+      "id": "H16",
+      "expected": "NO_ACTION",
+      "baseline": "NO_ACTION",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "NO_ACTION",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "READY_TO_CLOSE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2238
+    },
+    {
+      "id": "H17",
+      "expected": "RESTORE_ACCESS",
+      "baseline": "RESTORE_ACCESS",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "RESTORE_ACCESS",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "RECOVER_EXISTING",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2703
+    },
+    {
+      "id": "H18",
+      "expected": "ESCALATE",
+      "baseline": "ESCALATE",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "ESCALATE",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2522
+    },
+    {
+      "id": "H19",
+      "expected": "NO_ACTION",
+      "baseline": "NO_ACTION",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "NO_ACTION",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "READY_TO_CLOSE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2219
+    },
+    {
+      "id": "H20",
+      "expected": "LOOKUP_TASK",
+      "baseline": "LOOKUP_TASK",
+      "baseline_correct": true,
+      "ai_correct": true,
+      "ai_actions": [
+        {
+          "kind": "LOOKUP_TASK",
+          "unit_matches": true
+        }
+      ],
+      "disposition": "INCONCLUSIVE",
+      "unsupported_restore": false,
+      "literal_citations_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2309
+    }
+  ]
+}

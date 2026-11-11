@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="1010" viewBox="0 0 1500 1010" font-family="Arial,sans-serif" role="img" aria-labelledby="title desc"><title id="title">Assay backend service architecture</title><desc id="desc">Five services with private databases, mandatory AI assessment and PayPal settlement, and an isolated media verifier. Local prototype verified. Actual sandbox and provider tests pending.</desc><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#65809b"/></marker></defs><rect width="1500" height="1010" fill="#f4f7fb"/>
+<text x="30" y="44" font-size="29" fill="#183b59" font-weight="700" text-anchor="start">Assay | AI outcome assurance for video delivery: backend services</text>
+<text x="30" y="76" font-size="16" fill="#24435e" font-weight="400" text-anchor="start">11 NOV 2026 · Five services, five PostgreSQL databases, isolated verifier · runs in Docker Compose</text>
+<rect x="30" y="110" width="1440" height="140" rx="10" stroke="#3875a5" stroke-width="1.6" fill="white"/>
+<text x="750.0" y="140" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Commerce service</text>
+<text x="750.0" y="166" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Buyer contract + consent · logical units · durable saga · exact review + one-time closure permit</text>
+<text x="750.0" y="189" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Public API composition · signed caller/tenant/buyer authorization · no model/provider/PayPal secrets</text>
+<rect x="500" y="212" width="500" height="27" rx="6" fill="#eaf1f8" stroke="#3875a5"/>
+<text x="750" y="231" font-size="14" fill="#24435e" font-weight="400" text-anchor="middle">Private Commerce database · contracts / saga / permits</text>
+<path d="M202 250 L202 315" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="30" y="315" width="345" height="160" rx="10" stroke="#3875a5" stroke-width="1.6" fill="white"/>
+<text x="202.5" y="345" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Provider service</text>
+<text x="202.5" y="371" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Attempt intent + provider task ID</text>
+<text x="202.5" y="394" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Known-job lookup before regeneration</text>
+<text x="202.5" y="417" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Unknown submission blocks replay</text>
+<path d="M202 475 L202 515" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="30" y="515" width="345" height="90" rx="10" stroke="#3875a5" stroke-width="1.6" fill="#eaf1f8"/>
+<text x="202.5" y="545" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Provider database</text>
+<text x="202.5" y="571" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Private role · tenant RLS · local outbox</text>
+<path d="M567 250 L567 315" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="395" y="315" width="345" height="160" rx="10" stroke="#3875a5" stroke-width="1.6" fill="white"/>
+<text x="567.5" y="345" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Delivery service</text>
+<text x="567.5" y="371" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Private archive + media integrity</text>
+<text x="567.5" y="394" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Reviewed access restoration</text>
+<text x="567.5" y="417" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Actual purchaser-route receipt</text>
+<path d="M567 475 L567 515" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="395" y="515" width="345" height="90" rx="10" stroke="#3875a5" stroke-width="1.6" fill="#eaf1f8"/>
+<text x="567.5" y="545" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Delivery database</text>
+<text x="567.5" y="571" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Private role · tenant RLS · local outbox</text>
+<path d="M932 250 L932 315" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="760" y="315" width="345" height="160" rx="10" stroke="#3875a5" stroke-width="1.6" fill="white"/>
+<text x="932.5" y="345" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Investigation service</text>
+<text x="932.5" y="371" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Durable AI run + scoped reads</text>
+<text x="932.5" y="394" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Literal evidence citations + abstention</text>
+<text x="932.5" y="417" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Required current outcome assessment</text>
+<path d="M932 475 L932 515" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="760" y="515" width="345" height="90" rx="10" stroke="#3875a5" stroke-width="1.6" fill="#eaf1f8"/>
+<text x="932.5" y="545" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Investigation database</text>
+<text x="932.5" y="571" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Private role · tenant RLS · local outbox</text>
+<path d="M1297 250 L1297 315" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="1125" y="315" width="345" height="160" rx="10" stroke="#3875a5" stroke-width="1.6" fill="white"/>
+<text x="1297.5" y="345" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Payments service</text>
+<text x="1297.5" y="371" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Only PayPal credential owner</text>
+<text x="1297.5" y="394" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Atomic unit/refund reservations</text>
+<text x="1297.5" y="417" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Confirmed child resource + journal</text>
+<path d="M1297 475 L1297 515" fill="none" stroke="#65809b" stroke-width="1.8" marker-end="url(#arrow)"/>
+<rect x="1125" y="515" width="345" height="90" rx="10" stroke="#3875a5" stroke-width="1.6" fill="#eaf1f8"/>
+<text x="1297.5" y="545" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Payments database</text>
+<text x="1297.5" y="571" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Private role · tenant RLS · local outbox</text>
+<text x="750" y="291" font-size="15" fill="#24435e" font-weight="400" text-anchor="middle">Authenticated APIs + durable outbox/inbox · local transactions and persisted workflow · no shared business tables</text>
+<rect x="30" y="655" width="345" height="120" rx="10" stroke="#c47736" stroke-width="1.6" fill="#fff8ef"/>
+<text x="202.5" y="685" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Runway adapter</text>
+<text x="202.5" y="711" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Generation / task lookup</text>
+<text x="202.5" y="734" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Paid inference off by default</text>
+<rect x="395" y="655" width="345" height="120" rx="10" stroke="#c47736" stroke-width="1.6" fill="#fff8ef"/>
+<text x="567.5" y="685" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Isolated media worker</text>
+<text x="567.5" y="711" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Bounded bytes · decode / hash</text>
+<text x="567.5" y="734" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">No business keys or database</text>
+<rect x="760" y="655" width="345" height="120" rx="10" stroke="#c47736" stroke-width="1.6" fill="#fff8ef"/>
+<text x="932.5" y="685" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Gemini investigator</text>
+<text x="932.5" y="711" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Real model + bounded tool selection</text>
+<text x="932.5" y="734" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">No payment tools or price authority</text>
+<rect x="1125" y="655" width="345" height="120" rx="10" stroke="#c47736" stroke-width="1.6" fill="#fff8ef"/>
+<text x="1297.5" y="685" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">PayPal Sandbox</text>
+<text x="1297.5" y="711" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Authorize → final capture OR void</text>
+<text x="1297.5" y="734" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Original-capture refund + read-back</text>
+<path d="M375 430 H384 V633 H202 V652" fill="none" stroke="#65809b" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M740 430 H749 V633 H567 V652" fill="none" stroke="#65809b" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M1105 430 H1114 V633 H932 V652" fill="none" stroke="#65809b" stroke-width="1.6" marker-end="url(#arrow)"/>
+<path d="M1470 430 H1479 V633 H1297 V652" fill="none" stroke="#65809b" stroke-width="1.6" marker-end="url(#arrow)"/>
+<rect x="30" y="815" width="1440" height="110" rx="10" stroke="#1a8b77" stroke-width="1.6" fill="#edf9f4"/>
+<text x="750.0" y="845" font-size="20" fill="#183b59" font-weight="700" text-anchor="middle">Required proof for normal case closure</text>
+<text x="750.0" y="871" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">Current cited AI assessment + valid buyer-access evidence + exact approval + confirmed PayPal outcome</text>
+<text x="750.0" y="894" font-size="15" fill="#526b80" font-weight="400" text-anchor="middle">AI outage pauses new normal completion. Preservation, existing customer access and safe financial release continue.</text>
+<text x="30" y="961" font-size="17" fill="#183b59" font-weight="700" text-anchor="start">Verified: 45 local tests · native PostgreSQL · 11 healthy containers · real Sandbox authorize / $40 capture / refund / void · real Gemini</text>
+<text x="30" y="989" font-size="15" fill="#24435e" font-weight="400" text-anchor="start">Not yet: signed PayPal webhook received · real provider output in production · cloud deployment · external OIDC</text>
+</svg>

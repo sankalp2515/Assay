@@ -1,0 +1,30 @@
+{
+  "at": "2026-11-07T21:01:20.128Z",
+  "passed": true,
+  "provider": "Lightricks LTX Video Distilled ZeroGPU",
+  "actual_generated_video": true,
+  "provider_result_bridge": "completed Gradio result supplied to isolated integration harness",
+  "actual_ai": true,
+  "model": "gemini-3.1-flash-lite",
+  "actual_paypal_sandbox": false,
+  "payment_provenance": "explicit test fixture",
+  "real_money": false,
+  "archive_and_buyer_sha256": "0139fdf87fc41234a7dc863b735715e2c4313669ac6f814e522964f4fd217753",
+  "media": {
+    "sha256": "0139fdf87fc41234a7dc863b735715e2c4313669ac6f814e522964f4fd217753",
+    "bytes": 299521,
+    "duration": 4.033333,
+    "width": 1280,
+    "height": 736,
+    "codec": "h264",
+    "checker_version": "media-v1"
+  },
+  "authorized_minor": 500,
+  "captured_minor": 500,
+  "journal_receipt_digest": "961d26af18ff3a7702b45d7735f608262a1513369e2cf9545631672873e55eef",
+  "limitations": [
+    "In-process authenticated service calls",
+    "Public demo provider, no production LTX or Runway integration claim",
+    "No signed webhook delivery"
+  ]
+}

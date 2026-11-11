@@ -1,0 +1,740 @@
+{
+  "at": "2026-11-10T13:38:12.405Z",
+  "fixture_sha256": "0b1de0834a0f066cffbb67431c73c77fcbbbd1d67f8271718aa0ccb58c3238a1",
+  "cases": 30,
+  "provenance": "actual Gemini, frozen authored buyer messages, automated exact scoring",
+  "scoring": "exact set of (clip, issue) pairs and instruction flag; clip-only score ignores issue type",
+  "baseline": "keyword rules: digits, number words, ordinals, ranges, last-N, except/rest, issue keywords",
+  "baseline_exact": 15,
+  "ai_exact": 18,
+  "baseline_clips": 19,
+  "ai_clips": 18,
+  "answered_cases": 23,
+  "baseline_exact_on_answered": 11,
+  "ai_exact_on_answered": 18,
+  "ai_invalid_reading": 0,
+  "ai_provider_unavailable": 7,
+  "scoring_note": "Invalid readings (schema or quote validation failed) count as wrong. Provider-unavailable cases count as wrong in ai_exact and are listed separately.",
+  "limitations": [
+    "Authored messages, not real customer tickets",
+    "Single run at temperature 0; no variance estimate",
+    "The model reads only; outcomes are decided by rules and are not part of this score",
+    "No monetary writes"
+  ],
+  "results": [
+    {
+      "id": "M01",
+      "note": "plain",
+      "expected": [
+        "3:NR"
+      ],
+      "baseline": [
+        "3:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 4,
+      "ai_exact": false,
+      "ai_clips": false,
+      "status": "provider_unavailable",
+      "latency_ms": 142440
+    },
+    {
+      "id": "M02",
+      "note": "ordinal words",
+      "expected": [
+        "3:WP",
+        "4:WP"
+      ],
+      "baseline": [
+        "3:WP",
+        "4:WP"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 4,
+      "ai_exact": false,
+      "ai_clips": false,
+      "status": "provider_unavailable",
+      "latency_ms": 128391
+    },
+    {
+      "id": "M03",
+      "note": "relative position",
+      "expected": [
+        "10:NR",
+        "9:NR"
+      ],
+      "baseline": [
+        "1:NR",
+        "3:NR",
+        "4:NR",
+        "5:NR",
+        "6:NR",
+        "7:NR",
+        "8:NR"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 4,
+      "ai_exact": false,
+      "ai_clips": false,
+      "status": "provider_unavailable",
+      "latency_ms": 164301
+    },
+    {
+      "id": "M04",
+      "note": "range",
+      "expected": [
+        "4:NR",
+        "5:NR",
+        "6:NR"
+      ],
+      "baseline": [
+        "4:NR",
+        "5:NR",
+        "6:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 4,
+      "ai_exact": false,
+      "ai_clips": false,
+      "status": "provider_unavailable",
+      "latency_ms": 126940
+    },
+    {
+      "id": "M05",
+      "note": "negation",
+      "expected": [
+        "6:NR"
+      ],
+      "baseline": [
+        "2:NR",
+        "6:NR"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 4,
+      "ai_exact": false,
+      "ai_clips": false,
+      "status": "provider_unavailable",
+      "latency_ms": 126895
+    },
+    {
+      "id": "M06",
+      "note": "whole order",
+      "expected": [
+        "0:NR"
+      ],
+      "baseline": [
+        "0:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 3,
+      "ai": [
+        "10:NR",
+        "1:NR",
+        "2:NR",
+        "3:NR",
+        "4:NR",
+        "5:NR",
+        "6:NR",
+        "7:NR",
+        "8:NR",
+        "9:NR"
+      ],
+      "ai_exact": false,
+      "ai_clips": false,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 116094
+    },
+    {
+      "id": "M07",
+      "note": "Spanish",
+      "expected": [
+        "5:WP"
+      ],
+      "baseline": [
+        "5:NR"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "5:WP"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1606
+    },
+    {
+      "id": "M08",
+      "note": "Hinglish",
+      "expected": [
+        "7:NR"
+      ],
+      "baseline": [
+        "7:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 2,
+      "ai": [
+        "7:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 39430
+    },
+    {
+      "id": "M09",
+      "note": "billing",
+      "expected": [
+        "0:BQ"
+      ],
+      "baseline": [
+        "0:BQ"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "10:BQ",
+        "1:BQ",
+        "2:BQ",
+        "3:BQ",
+        "4:BQ",
+        "5:BQ",
+        "6:BQ",
+        "7:BQ",
+        "8:BQ",
+        "9:BQ"
+      ],
+      "ai_exact": false,
+      "ai_clips": false,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 29599
+    },
+    {
+      "id": "M10",
+      "note": "instruction attempt",
+      "expected": [
+        "0:BQ"
+      ],
+      "baseline": [
+        "10:BQ"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [],
+      "ai_exact": false,
+      "ai_clips": false,
+      "ai_instruction_flag": true,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 3441
+    },
+    {
+      "id": "M11",
+      "note": "content",
+      "expected": [
+        "1:WC"
+      ],
+      "baseline": [
+        "1:WC"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "1:WC"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 5978
+    },
+    {
+      "id": "M12",
+      "note": "two issues",
+      "expected": [
+        "10:NR",
+        "1:WC"
+      ],
+      "baseline": [
+        "10:WC",
+        "1:WC"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": true,
+      "attempts": 4,
+      "ai_exact": false,
+      "ai_clips": false,
+      "status": "provider_unavailable",
+      "latency_ms": 176008
+    },
+    {
+      "id": "M13",
+      "note": "list",
+      "expected": [
+        "2:WP",
+        "5:WP",
+        "8:WP"
+      ],
+      "baseline": [
+        "2:WP",
+        "5:WP",
+        "8:WP"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 4,
+      "ai_exact": false,
+      "ai_clips": false,
+      "status": "provider_unavailable",
+      "latency_ms": 139937
+    },
+    {
+      "id": "M14",
+      "note": "ordinal",
+      "expected": [
+        "6:NR"
+      ],
+      "baseline": [
+        "6:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 3,
+      "ai": [
+        "6:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 121109
+    },
+    {
+      "id": "M15",
+      "note": "exception",
+      "expected": [
+        "9:WP"
+      ],
+      "baseline": [
+        "10:WP",
+        "1:WP",
+        "2:WP",
+        "3:WP",
+        "4:WP",
+        "5:WP",
+        "6:WP",
+        "7:WP",
+        "8:WP"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "9:WP"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1468
+    },
+    {
+      "id": "M16",
+      "note": "terse",
+      "expected": [
+        "1:NR",
+        "3:NR"
+      ],
+      "baseline": [
+        "1:NR",
+        "3:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "1:NR",
+        "3:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 4037
+    },
+    {
+      "id": "M17",
+      "note": "complement",
+      "expected": [
+        "10:NR",
+        "6:NR",
+        "7:NR",
+        "8:NR",
+        "9:NR"
+      ],
+      "baseline": [
+        "10:NR",
+        "2:NR",
+        "3:NR",
+        "4:NR",
+        "6:NR",
+        "7:NR",
+        "8:NR",
+        "9:NR"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "10:NR",
+        "6:NR",
+        "7:NR",
+        "8:NR",
+        "9:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 2594
+    },
+    {
+      "id": "M18",
+      "note": "number words",
+      "expected": [
+        "7:NR",
+        "8:NR"
+      ],
+      "baseline": [
+        "7:NR",
+        "8:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "7:NR",
+        "8:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 3401
+    },
+    {
+      "id": "M19",
+      "note": "dead link",
+      "expected": [
+        "2:NR"
+      ],
+      "baseline": [
+        "2:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "2:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1256
+    },
+    {
+      "id": "M20",
+      "note": "plays but wrong",
+      "expected": [
+        "4:WC"
+      ],
+      "baseline": [
+        "4:WP"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": true,
+      "attempts": 2,
+      "ai": [
+        "4:WC"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 23732
+    },
+    {
+      "id": "M21",
+      "note": "no claim",
+      "expected": [],
+      "baseline": [],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 2,
+      "ai": [],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 51263
+    },
+    {
+      "id": "M22",
+      "note": "French",
+      "expected": [
+        "3:NR"
+      ],
+      "baseline": [
+        "3:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "3:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1837
+    },
+    {
+      "id": "M23",
+      "note": "injection plus claim",
+      "expected": [
+        "2:NR"
+      ],
+      "baseline": [
+        "2:NR"
+      ],
+      "baseline_exact": true,
+      "baseline_clips": true,
+      "attempts": 1,
+      "ai": [
+        "2:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": true,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1526
+    },
+    {
+      "id": "M24",
+      "note": "works vs not",
+      "expected": [
+        "4:WP"
+      ],
+      "baseline": [
+        "1:WP",
+        "2:WP",
+        "3:WP",
+        "4:WP"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "4:WP"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1224
+    },
+    {
+      "id": "M25",
+      "note": "unknown clip",
+      "expected": [
+        "0:NR"
+      ],
+      "baseline": [
+        "10:BQ",
+        "1:BQ",
+        "9:BQ"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "0:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1330
+    },
+    {
+      "id": "M26",
+      "note": "relative",
+      "expected": [
+        "10:WP",
+        "9:WP"
+      ],
+      "baseline": [
+        "10:WP",
+        "1:WP"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "10:WP",
+        "9:WP"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1459
+    },
+    {
+      "id": "M27",
+      "note": "inverted exception",
+      "expected": [
+        "4:NR",
+        "7:NR"
+      ],
+      "baseline": [
+        "10:NR",
+        "1:NR",
+        "2:NR",
+        "3:NR",
+        "5:NR",
+        "6:NR",
+        "8:NR",
+        "9:NR"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "10:NR",
+        "1:NR",
+        "2:NR",
+        "3:NR",
+        "5:NR",
+        "6:NR",
+        "8:NR",
+        "9:NR"
+      ],
+      "ai_exact": false,
+      "ai_clips": false,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1340
+    },
+    {
+      "id": "M28",
+      "note": "missing plus billing",
+      "expected": [
+        "10:BQ",
+        "10:NR"
+      ],
+      "baseline": [
+        "10:BQ"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": true,
+      "attempts": 2,
+      "ai": [
+        "10:BQ",
+        "10:NR"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 56375
+    },
+    {
+      "id": "M29",
+      "note": "Hindi",
+      "expected": [
+        "3:WP"
+      ],
+      "baseline": [
+        "0:WP"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "3:WP"
+      ],
+      "ai_exact": true,
+      "ai_clips": true,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1567
+    },
+    {
+      "id": "M30",
+      "note": "duplicate mention",
+      "expected": [
+        "5:NR"
+      ],
+      "baseline": [
+        "2:NR",
+        "3:NR",
+        "5:NR"
+      ],
+      "baseline_exact": false,
+      "baseline_clips": false,
+      "attempts": 1,
+      "ai": [
+        "2:OT",
+        "3:OT",
+        "5:NR"
+      ],
+      "ai_exact": false,
+      "ai_clips": false,
+      "ai_instruction_flag": false,
+      "literal_quotes_passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "latency_ms": 1850
+    }
+  ],
+  "post_run_note": "Answered-subset fields computed from this run's rows with the same rule now in the script; no rescoring. Known AI misses: listing all ten clips instead of whole-order (M06, M09) is scored wrong under the frozen rule."
+}

@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-11-07T20:03:03.303Z",
+  "test": "actual PayPal Sandbox OAuth authentication",
+  "environment": "sandbox",
+  "authenticated": true,
+  "token_expires_at": "2026-11-08T05:02:03.302Z",
+  "transaction_created": false,
+  "authorization_capture_refund_verified": false,
+  "credentials_exposed": false
+}

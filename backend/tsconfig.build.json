@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts", "scripts/migrate.ts"],
+  "exclude": [
+    "test",
+    "scripts/benchmark.ts",
+    "scripts/check-workflow-ai.ts",
+    "scripts/export-api.ts"
+  ]
+}

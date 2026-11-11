@@ -1,0 +1,9 @@
+{
+  "timestamp": "2026-11-07T18:37:39.662Z",
+  "environment": "single process Fastify injection + five isolated embedded PostgreSQL engines, empty batch list, JWT auth",
+  "requests": 50,
+  "p50_ms": 5.4780000000000655,
+  "p95_ms": 7.524499999999534,
+  "external_provider_requests": 0,
+  "scope": "bounded local API microbenchmark, not distributed load/capacity validation"
+}

@@ -1,0 +1,36 @@
+{
+  "at": "2026-11-07T20:08:12.123Z",
+  "actual_api_calls": true,
+  "evidence_source": "synthetic incident evidence",
+  "results": [
+    {
+      "provider": "gemini",
+      "passed": true,
+      "model": "gemini-3.1-flash-lite",
+      "disposition": "RECOVER_EXISTING",
+      "citations_validated": true,
+      "elapsed_ms": 3044
+    },
+    {
+      "provider": "groq",
+      "passed": true,
+      "model": "groq/openai/gpt-oss-120b",
+      "disposition": "RECOVER_EXISTING",
+      "citations_validated": true,
+      "elapsed_ms": 2852
+    },
+    {
+      "provider": "nvidia",
+      "passed": true,
+      "model": "nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "disposition": "RECOVER_EXISTING",
+      "citations_validated": true,
+      "elapsed_ms": 3226
+    }
+  ],
+  "limitations": [
+    "connectivity/schema/citation checks only",
+    "not held-out benefit or market validation",
+    "no media generation or PayPal transaction"
+  ]
+}

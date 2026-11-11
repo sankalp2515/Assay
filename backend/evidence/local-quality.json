@@ -1,0 +1,42 @@
+{
+  "at": "2026-11-10T23:15:58.256Z",
+  "passed": true,
+  "results": [
+    {
+      "step": "typecheck",
+      "passed": true,
+      "elapsed_ms": 4848
+    },
+    {
+      "step": "tests",
+      "passed": true,
+      "elapsed_ms": 114265,
+      "tests": 45,
+      "tests_passed": 45,
+      "failed": 0
+    },
+    {
+      "step": "native-postgres",
+      "passed": true,
+      "elapsed_ms": 14426
+    },
+    {
+      "step": "build",
+      "passed": true,
+      "elapsed_ms": 4813
+    },
+    {
+      "step": "openapi",
+      "passed": true,
+      "elapsed_ms": 6788
+    }
+  ],
+  "native_database_checks": 9,
+  "external_api_calls": false,
+  "limitations": [
+    "fixture-based domain/API tests",
+    "no actual video-provider generation",
+    "PayPal and external AI receipts are separate gates",
+    "no commercial production or cloud capacity certification"
+  ]
+}

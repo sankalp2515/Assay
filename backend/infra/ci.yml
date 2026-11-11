@@ -1,0 +1,44 @@
+# Copy to the root .github/workflows/backend.yml once this workspace is a Git repository.
+name: backend-quality
+on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npm run verify:local
+      - run: npm audit --audit-level=high
+  containers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production service image
+        run: docker build --target runtime -t paid-video-delivery:ci .
+      - name: Image runs as non-root
+        run: test "$(docker run --rm --entrypoint id paid-video-delivery:ci -u)" != "0"
+      - name: Validate compose topology with placeholder values
+        run: |
+          printf 'PUBLIC_KEYS={}\nTENANT_ID=00000000-0000-4000-a000-000000000001\n' > /tmp/ci.env
+          docker compose --env-file /tmp/ci.env -f infra/compose.yaml config --quiet
+      - name: Judge walkthrough runs in an isolated container
+        run: docker compose -f infra/compose.demo.yaml run --rm demo

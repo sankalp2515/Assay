@@ -1,0 +1,43 @@
+# Publish list: only the product ships. Earlier research, ideas and internal
+# working notes stay local.
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/LICENSE
+!/DESIGN.md
+!/PRODUCT.md
+!/backend/
+!/frontend/
+!/product/
+/product/*
+!/product/PROBLEM_STATEMENT.md
+!/product/PUBLIC_SOURCES.md
+!/product/PRD.md
+
+# Secrets and private local state
+.env
+.env.*
+!.env.example
+**/.local/
+**/*.pem
+**/*.key
+backend/evidence/private/
+
+# Build output and dependencies
+**/node_modules/
+**/dist/
+**/coverage/
+**/*.log
+**/__pycache__/
+**/.venv/
+
+# Internal agent notes, tool caches and design review material
+**/AGENTS.md
+frontend/design-qa.md
+frontend/review/
+frontend/.openai/
+frontend/.taste-skill/
+frontend/.impeccable/
+frontend/public/_ref/
+frontend/public/assets/coast-07.png

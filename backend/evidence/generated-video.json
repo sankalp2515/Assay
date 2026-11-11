@@ -1,0 +1,19 @@
+{
+  "at": "2026-11-07T21:00:40.023Z",
+  "provider": "Lightricks public LTX Video Distilled Space",
+  "actual_generated_video": true,
+  "generation_requests": 1,
+  "existing_result_downloaded": true,
+  "paid_api_used": false,
+  "media": {
+    "sha256": "0139fdf87fc41234a7dc863b735715e2c4313669ac6f814e522964f4fd217753",
+    "bytes": 299521,
+    "duration": 4.033333,
+    "width": 1280,
+    "height": 736,
+    "codec": "h264",
+    "checker_version": "media-v1"
+  },
+  "separate_loopback_verifier_process": true,
+  "worker_verified_at": "2026-11-07T21:02:15.116Z"
+}

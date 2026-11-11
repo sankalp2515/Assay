@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-07T21:01:36.290Z",
+  "passed": true,
+  "transport": "loopback HTTP",
+  "scenario": "recovery",
+  "verified": [
+    "operator list and unpublished review",
+    "private buyer retrieval before capture",
+    "asynchronous assessment adoption",
+    "review and confirmation via outbox"
+  ],
+  "ai": "fixture",
+  "payment": "fixture",
+  "video": "synthetic MP4"
+}

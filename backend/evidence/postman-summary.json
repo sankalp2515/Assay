@@ -1,0 +1,15 @@
+{
+  "tool": "Newman 6.2.1 / Postman collection",
+  "requests": {
+    "total": 2,
+    "pending": 0,
+    "failed": 0
+  },
+  "assertions": {
+    "total": 4,
+    "pending": 0,
+    "failed": 0
+  },
+  "failures": 0,
+  "scope": "local backend HTTP smoke; no PayPal API called"
+}

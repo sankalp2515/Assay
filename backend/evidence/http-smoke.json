@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-11-07T20:25:52.974Z",
+  "transport": "HTTP between five separately launched local processes",
+  "ready": [
+    {
+      "service": "commerce",
+      "database": "ready",
+      "integration_configured": true
+    },
+    {
+      "service": "provider",
+      "database": "ready",
+      "integration_configured": false
+    },
+    {
+      "service": "delivery",
+      "database": "ready",
+      "integration_configured": true
+    },
+    {
+      "service": "investigation",
+      "database": "ready",
+      "integration_configured": true
+    },
+    {
+      "service": "payments",
+      "database": "ready",
+      "integration_configured": true
+    }
+  ],
+  "idempotent_create": true,
+  "previously_committed_reference_preserved": true,
+  "changed_payload_rejected": true,
+  "unauthenticated_access_rejected": true,
+  "paypal_transaction": false,
+  "provider_generation": false
+}

@@ -1,0 +1,61 @@
+{
+  "name": "paid-video-delivery-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.20.0 <27"
+  },
+  "scripts": {
+    "web": "tsx scripts/web.ts",
+    "web:migrate": "tsx scripts/web-migrate.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "verify:local": "tsx scripts/verify-local.ts",
+    "provision": "tsx scripts/provision.ts",
+    "demo": "tsx scripts/demo.ts",
+    "dev": "tsx scripts/dev.ts",
+    "frontend:fixtures": "tsx scripts/frontend-fixtures.ts",
+    "evaluate:investigation": "tsx scripts/evaluate-investigation.ts",
+    "evaluate:claims": "tsx scripts/evaluate-claims.ts",
+    "generate:demo-video": "tsx scripts/generate-demo-video.ts",
+    "verify:generated-video": "tsx scripts/check-generated-video-sandbox.ts",
+    "start": "node dist/src/main.js",
+    "token": "tsx scripts/token.ts",
+    "preflight": "tsx scripts/preflight.ts",
+    "integration:gemini": "tsx scripts/check-gemini.ts",
+    "integration:ai-providers": "tsx scripts/check-ai-providers.ts",
+    "integration:paypal-auth": "tsx scripts/check-paypal-auth.ts",
+    "integration:paypal-lifecycle": "tsx scripts/check-paypal-lifecycle.ts",
+    "integration:service-sandbox": "tsx scripts/check-service-sandbox.ts",
+    "integration:postgres": "tsx scripts/check-postgres.ts",
+    "backup": "tsx scripts/backup.ts",
+    "integration:workflow-ai": "tsx scripts/check-workflow-ai.ts",
+    "benchmark": "tsx scripts/benchmark.ts",
+    "export:api": "tsx scripts/export-api.ts",
+    "migrate": "tsx scripts/migrate.ts",
+    "smoke": "tsx scripts/smoke-http.ts",
+    "smoke:containers": "tsx scripts/smoke-containers.ts",
+    "frontend:sandbox": "tsx scripts/frontend-sandbox.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "@fastify/helmet": "13.0.2",
+    "@fastify/rate-limit": "10.3.0",
+    "@fastify/swagger": "9.5.1",
+    "dotenv": "17.2.3",
+    "fastify": "5.12.8",
+    "jose": "6.2.15",
+    "pg": "8.23.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "@types/pg": "8.15.6",
+    "embedded-postgres": "^18.6.0-beta.19",
+    "prettier": "3.6.2",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

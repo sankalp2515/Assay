@@ -1,0 +1,22 @@
+{
+  "at": "2026-11-10T23:15:45.936Z",
+  "engine": "PostgreSQL 18.6 on x86_64-windows, compiled by msvc-19.44.35228, 64-bit",
+  "provenance": "actual local native PostgreSQL",
+  "checks": [
+    "16 concurrent command submissions produce one aggregate",
+    "24 pooled row-lock mutations preserve every update",
+    "tenant RLS rejects cross-tenant writes; audit/journal deny mutation",
+    "failed transaction leaves neither aggregate nor audit record",
+    "expired worker cannot overwrite successful newer lease claim",
+    "restricted login cannot read without tenant role and cannot bypass RLS",
+    "competing refund reservations cannot exceed captured balance on native PostgreSQL",
+    "encrypted logical snapshot restores to separate DB; tampering/nonempty targets rejected; audit sequence resumes",
+    "committed state survives native PostgreSQL stop/start"
+  ],
+  "passed": 9,
+  "limitations": [
+    "not managed cloud PostgreSQL",
+    "logical service database restore only; media files and cross-service consistency not tested",
+    "no external provider or payment lifecycle asserted"
+  ]
+}

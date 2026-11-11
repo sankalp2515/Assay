@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-11-07T20:06:27.440Z",
+  "actual_model": true,
+  "model": "gemini-3.1-flash-lite",
+  "assessment_provenance": "real",
+  "model_tool_calls": 1,
+  "actual_provider_generation": false,
+  "video_source": "deterministic locally generated MP4 fixture",
+  "paypal_environment": "fixture, no sandbox API called",
+  "recovered_original_fixture": true,
+  "amount_minor": 500,
+  "state": "CONFIRMED"
+}

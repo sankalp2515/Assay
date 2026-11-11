@@ -1,0 +1,23 @@
+{
+  "at": "2026-11-07T20:22:25.531Z",
+  "passed": true,
+  "actual_ai": true,
+  "model": "gemini-3.1-flash-lite",
+  "actual_paypal_sandbox": true,
+  "actual_provider_generation": false,
+  "video_provenance": "Eight deterministic local MP4 fixtures; two fixture failed tasks",
+  "api_transport": "authenticated in-process Fastify injection across five domains",
+  "database": "five separate persistent local PGlite databases",
+  "recovered_original_fixture": true,
+  "authorized_minor": 5000,
+  "captured_minor": 4000,
+  "unused_authorization_minor": 1000,
+  "journal_receipt_digest": "1e99e1518d960f53b4addfce81e23920adf80c5c38d6490271585c0d18b134c0",
+  "contract_digest": "91f443eb3eeab205afd83a49026013805406a5fe7932eefec45ceb12810c7625",
+  "limitations": [
+    "not actual video-provider output",
+    "not separate-process HTTP e2e",
+    "no actual signed webhook delivery",
+    "not commercial production validation"
+  ]
+}

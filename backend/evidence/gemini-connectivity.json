@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-11-07T20:06:12.965Z",
+  "test": "actual Gemini request with synthetic evidence",
+  "provider_video_generated": false,
+  "paypal_transaction": false,
+  "assessment": {
+    "disposition": "RECOVER_EXISTING",
+    "explanation": "The provider confirms the task succeeded, and the delivery evidence indicates the video is archived and validated. However, the delivery evidence explicitly states that buyer access is not published, which explains why the work appears missing to the purchaser despite being completed.",
+    "citations": [
+      {
+        "observation_id": "047f02cb-46ef-4ca4-b44b-3d03e27c0cc5",
+        "quote": "Original task task-fixture-001 reports SUCCEEDED."
+      },
+      {
+        "observation_id": "7992df8c-6d03-4d7e-852b-fe6e30c7a61e",
+        "quote": "The video is archived and technically validated, but buyer access is not published."
+      }
+    ],
+    "hypotheses": [
+      {
+        "description": "The video work is completed but remains inaccessible to the purchaser due to a failure to publish the access link.",
+        "observation_ids": [
+          "7992df8c-6d03-4d7e-852b-fe6e30c7a61e"
+        ]
+      }
+    ],
+    "actions": [
+      {
+        "kind": "RESTORE_ACCESS",
+        "unit_id": "ad958713-6465-417f-97f7-fdd11a14e44c",
+        "reason": "The video is validated and archived but currently lacks published access for the purchaser."
+      }
+    ]
+  },
+  "model": "gemini-3.1-flash-lite",
+  "provenance": "real",
+  "tool_calls": 0,
+  "evidence": [
+    {
+      "id": "047f02cb-46ef-4ca4-b44b-3d03e27c0cc5",
+      "source": "provider",
+      "unit_id": "ad958713-6465-417f-97f7-fdd11a14e44c",
+      "text": "Original task task-fixture-001 reports SUCCEEDED. This is explicitly synthetic evidence for a real model connectivity check."
+    },
+    {
+      "id": "7992df8c-6d03-4d7e-852b-fe6e30c7a61e",
+      "source": "delivery",
+      "unit_id": "ad958713-6465-417f-97f7-fdd11a14e44c",
+      "text": "The video is archived and technically validated, but buyer access is not published."
+    }
+  ],
+  "attempted_models": [
+    {
+      "provider": "gemini",
+      "outcome": "accepted"
+    }
+  ]
+}

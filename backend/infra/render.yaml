@@ -1,0 +1,135 @@
+# Deployment template. Account access, pricing and migration/runtime roles must be reviewed before applying.
+# No deployment has been performed by creating this file.
+envVarGroups:
+  - name: video-delivery-public-configuration
+    envVars:
+      - key: PUBLIC_KEYS
+        sync: false
+      - key: SERVICE_URLS
+        sync: false
+      - key: TENANT_IDS
+        sync: false
+      - key: MERCHANT_TENANT_ID
+        sync: false
+      - key: HOST
+        value: 0.0.0.0
+      - key: AUTO_MIGRATE
+        value: "false"
+services:
+  - type: web
+    name: video-commerce
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /ready
+    envVars:
+      - fromGroup: video-delivery-public-configuration
+      - key: SERVICE_NAME
+        value: commerce
+      - key: SERVICE_PRIVATE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+  - type: pserv
+    name: video-provider
+    runtime: docker
+    rootDir: backend
+    envVars:
+      - fromGroup: video-delivery-public-configuration
+      - key: SERVICE_NAME
+        value: provider
+      - key: SERVICE_PRIVATE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: RUNWAY_API_KEY
+        sync: false
+      - key: ALLOW_PAID_INFERENCE
+        value: "false"
+  - type: web
+    name: video-delivery
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /ready
+    disk:
+      name: video-artifacts
+      mountPath: /app/artifacts
+      sizeGB: 10
+    envVars:
+      - fromGroup: video-delivery-public-configuration
+      - key: SERVICE_NAME
+        value: delivery
+      - key: SERVICE_PRIVATE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: RUNWAY_ALLOWED_HOSTS
+        sync: false
+      - key: MEDIA_VERIFIER_URL
+        sync: false
+      - key: MEDIA_VERIFIER_TOKEN
+        sync: false
+  - type: pserv
+    name: video-media-verifier
+    runtime: docker
+    rootDir: backend
+    dockerCommand: node dist/src/verifier.js
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: MEDIA_VERIFIER_TOKEN
+        sync: false
+  - type: pserv
+    name: video-investigation
+    runtime: docker
+    rootDir: backend
+    envVars:
+      - fromGroup: video-delivery-public-configuration
+      - key: SERVICE_NAME
+        value: investigation
+      - key: SERVICE_PRIVATE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.1-flash-lite
+      - key: AI_ZERO_COST_ONLY
+        value: "true"
+      - key: GEMINI_FREE_TIER_CONFIRMED
+        sync: false
+      - key: AI_FALLBACK_PROVIDERS
+        value: groq,nvidia
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_FREE_TIER_CONFIRMED
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_FREE_TIER_CONFIRMED
+        sync: false
+  - type: web
+    name: video-payments
+    runtime: docker
+    rootDir: backend
+    healthCheckPath: /ready
+    envVars:
+      - fromGroup: video-delivery-public-configuration
+      - key: SERVICE_NAME
+        value: payments
+      - key: SERVICE_PRIVATE_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_MERCHANT_ID
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_RETURN_URL
+        sync: false
+      - key: PAYPAL_CANCEL_URL
+        sync: false

@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-07T20:09:28.709Z",
+  "provenance": "actual PayPal Sandbox adapter lifecycle",
+  "real_money": false,
+  "authorized_minor": 5000,
+  "captured_minor": 4000,
+  "unused_authorization_minor": 1000,
+  "actual_postcapture_refund_minor": 500,
+  "capture_status": "PARTIALLY_REFUNDED",
+  "refund_status": "COMPLETED",
+  "second_authorization_status": "VOIDED",
+  "receipt_digests": [
+    "989c4d4f9f3f65faa687adec7d9dbfbf6deb6b236fdb4e490933191ffddd944c",
+    "7bd69f8bb5930be947b08033c00201166cfc37b6d119c0876ffb516c55927efa",
+    "bb5187b5e75ecb7e70db040c6a63090ddabc91c20319cdd105929c63cd1e7d9d"
+  ],
+  "limitations": [
+    "adapter-level test; not a full service/browser product workflow",
+    "no real video generation or webhook delivery asserted"
+  ]
+}
