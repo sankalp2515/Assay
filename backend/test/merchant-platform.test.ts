@@ -430,3 +430,106 @@ test("@assay/node SDK drives sign-up keys, intake and buyer sessions against Com
     await h.close();
   }
 });
+
+test("normal delivery publishes an archived clip with a buyer-route receipt, no AI involved", async () => {
+  const h = await harness();
+  try {
+    const b = await h.setup(2);
+    const [artifact] = await h.seed(b, 1, false);
+    const r = await h.request("/v1/batches/" + b.id + "/deliver", { artifact_id: artifact!.id });
+    assert.equal(r.statusCode, 200, r.body);
+    assert.equal(r.json<Json>().outcome, "VERIFIED");
+    assert.equal(r.json<Json>().sha256, artifact!.sha256);
+    const stranger = await h.request("/v1/batches/" + b.id + "/deliver", { artifact_id: id() });
+    assert.equal(stranger.statusCode, 404);
+  } finally {
+    await h.close();
+  }
+});
+
+test("demo provider gives each visitor a fresh case: 7 delivered, clip 8 lost, 9 and 10 never rendered", async () => {
+  const h = await harness();
+  try {
+    const b = await h.setup(10);
+    const path = "/v1/demo/batches/" + b.id + "/simulate-provider";
+    assert.equal((await h.request(path, {})).statusCode, 404);
+    await withEnv(
+      { DEMO_SIMULATOR: "true", DEMO_CLIP_URL: "https://demo.assay.example/demo/test-clip.mp4", REPORTED_OUTPUT_HOSTS: "demo.assay.example" },
+      async () => {
+        const r = await h.request(path, {});
+        assert.equal(r.statusCode, 200, r.body);
+        const out = r.json<Json>();
+        assert.equal(out.simulated, true);
+        assert.deepEqual(out.delivered_clips, [1, 2, 3, 4, 5, 6, 7]);
+        assert.equal(out.lost_clip, 8);
+        assert.deepEqual(out.never_rendered_clips, [9, 10]);
+        const jobs = await h.contexts.commerce.db.tx(h.tenant, (q) =>
+          q.query<{ body: Json }>("SELECT body FROM outbox WHERE path='/internal/tasks/archive'"),
+        );
+        assert.equal(jobs.rows.length, 8);
+        assert.equal(jobs.rows.filter((j) => j.body.deliver === true).length, 7);
+        const view = (await h.request("/v1/batches/" + b.id)).json<Json>();
+        assert.equal(view.state, "RUNNING");
+        // Only once per batch.
+        assert.equal((await h.request(path, {})).statusCode, 409);
+      },
+    );
+  } finally {
+    await h.close();
+  }
+});
+
+test("gateway passes PayPal config, statement keys and same-origin sign-up through without a session", async () => {
+  const { createGateway } = await import("../src/web/gateway.js");
+  const { embedded } = await import("../src/core/database.js");
+  const h = await harness();
+  const db = await embedded();
+  await db.migrate("commerce");
+  const app = await createGateway({
+    origin: "https://demo.example",
+    tenant: h.tenant,
+    identity: h.identities.operator,
+    db,
+    members: { op: { role: "operator", subject: h.operator } },
+    commerceUrl: "https://commerce.internal",
+    deliveryUrl: "https://delivery.internal",
+    login: { authorization: () => "https://id.example", exchange: async () => "x" },
+    network: async (url, init) => {
+      const u = new URL(String(url));
+      const r = await h.apps.commerce.inject({
+        method: (init?.method ?? "GET") as "GET" | "POST",
+        url: u.pathname,
+        headers: init?.headers as Record<string, string>,
+        ...(init?.body ? { payload: String(init.body) } : {}),
+      });
+      return new Response(r.body, { status: r.statusCode, headers: { "content-type": "application/json" } });
+    },
+  });
+  try {
+    await withEnv({ PAYPAL_CLIENT_ID: "PUBLIC_CLIENT_ID_FOR_TESTS", SIGNUP_MODE: undefined }, async () => {
+      const cfg = await app.inject({ url: "/api/commerce/v1/paypal/config" });
+      assert.equal(cfg.statusCode, 200);
+      assert.equal(cfg.json<Json>().client_id, "PUBLIC_CLIENT_ID_FOR_TESTS");
+      assert.equal((await app.inject({ url: "/api/commerce/v1/statements/keys" })).statusCode, 200);
+      const cross = await app.inject({
+        method: "POST",
+        url: "/api/commerce/v1/signup",
+        headers: { origin: "https://evil.example" },
+        payload: { merchant_name: "X", email: "x@example.com" },
+      });
+      assert.equal(cross.statusCode, 403);
+      const same = await app.inject({
+        method: "POST",
+        url: "/api/commerce/v1/signup",
+        headers: { origin: "https://demo.example" },
+        payload: { merchant_name: "X", email: "x@example.com" },
+      });
+      assert.equal(same.json<Json>().code, "signup_closed");
+      assert.equal((await app.inject({ url: "/api/commerce/v1/batches" })).statusCode, 401);
+    });
+  } finally {
+    await app.close();
+    await db.close();
+    await h.close();
+  }
+});

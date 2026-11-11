@@ -125,6 +125,37 @@
         }
       }
     },
+    "/internal/artifacts/{artifact}/deliver": {
+      "post": {
+        "summary": "/internal/artifacts/:artifact/deliver",
+        "tags": [
+          "delivery"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "artifact",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/artifacts": {
       "post": {
         "summary": "/internal/artifacts",

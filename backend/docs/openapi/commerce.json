@@ -474,6 +474,9 @@
                     "type": "string",
                     "maxLength": 2000,
                     "pattern": "^https:\\/\\/\\S+$"
+                  },
+                  "deliver_on_archive": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -544,6 +547,9 @@
                     "type": "string",
                     "maxLength": 2000,
                     "pattern": "^https:\\/\\/\\S+$"
+                  },
+                  "deliver_on_archive": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -1269,6 +1275,9 @@
                     "type": "string",
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "deliver": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -1281,6 +1290,89 @@
           },
           "required": true
         },
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/demo/batches/{batch}/simulate-provider": {
+      "post": {
+        "summary": "/v1/demo/batches/:batch/simulate-provider",
+        "tags": [
+          "commerce"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "batch",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/batches/{batch}/deliver": {
+      "post": {
+        "summary": "/v1/batches/:batch/deliver",
+        "tags": [
+          "commerce"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "artifact_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "artifact_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": true
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "batch",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "description": "Default Response",

@@ -53,6 +53,7 @@ const app = await createGateway({
   commerceUrl: env.WEB_COMMERCE_URL || "http://127.0.0.1:4100",
   deliveryUrl: env.WEB_DELIVERY_URL || "http://127.0.0.1:4102",
   demoLogin,
+  trustProxy: env.WEB_TRUST_PROXY === "true",
   login: demoLogin && !env.WEB_OIDC_ISSUER
     ? {
         authorization: () => origin + "/#/",

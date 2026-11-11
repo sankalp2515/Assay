@@ -107,6 +107,17 @@ You do the steps marked **you**. I can do the ones marked **me** once you say go
    - a PayPal Sandbox *personal* test account to approve with. You create it in the Developer Dashboard. Its login is a Sandbox test credential, and you decide whether to publish it.
    - the sign-up invite code if you want judges to create their own merchant
 
+## A fresh case for every visitor
+
+With `DEMO_SIMULATOR=true` (the default in `compose.gcp.yaml`), a visitor can run the whole story on their own batch:
+
+1. Sign in as the merchant and create a batch.
+2. Approve the PayPal Sandbox hold as the buyer.
+3. Click "simulate the provider". Clips 1–7 arrive, clip 8 is archived but never delivered, and clips 9–10 never render.
+4. Investigate, recover clip 8, and approve the exact capture.
+
+The demo clip is served by the site itself at `DEMO_CLIP_URL` (default `https://<domain>/demo/test-clip.mp4`). It must be a neutral H.264 clip, at least 720p, 4–10 seconds and under 25 MB. The frontend ships that file. Clip downloads go out through the VM's public address.
+
 ## Safety on the hosted Sandbox
 
 - **PayPal is Sandbox only.** `api-m.sandbox.paypal.com` is hard-coded in the adapter.

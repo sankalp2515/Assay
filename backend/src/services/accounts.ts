@@ -27,7 +27,14 @@ export function accountRoutes(app: FastifyInstance, ctx: Context) {
   app.post(
     "/v1/signup",
     {
-      config: { rateLimit: { max: 5, timeWindow: "1 hour" } },
+      // Per address. Behind the web gateway every request shares the gateway's address,
+      // so a hosted deployment raises this and the gateway limits each visitor instead.
+      config: {
+        rateLimit: {
+          max: Math.max(1, Math.min(500, Number(process.env.SIGNUP_RATE_PER_HOUR ?? 5) || 5)),
+          timeWindow: "1 hour",
+        },
+      },
       schema: {
         tags: ["commerce"],
         security: [],

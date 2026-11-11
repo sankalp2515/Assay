@@ -12,6 +12,87 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { z } from "zod";
 export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
+  // Make a stored, validated original retrievable by its purchaser, then prove it: fetch
+  // it through the buyer's own route and compare the digest. Returns the receipt.
+  async function publishWithReceipt(a: { tenant: string }, key: string, verificationKey: string) {
+    const artifact = await ctx.db.mutate(
+      a.tenant,
+      "artifact",
+      key,
+      async (body) => {
+        requireThat(
+          body.state === "STORED",
+          "invalid_artifact",
+          "Only validated stored output may be published",
+        );
+        return { ...body, published: true };
+      },
+    );
+    const access = await app.inject({
+      url: "/v1/artifacts/" + key + "/content",
+      headers: {
+        authorization:
+          "Bearer " +
+          (await token(
+            ctx.identity,
+            "delivery",
+            a.tenant,
+            "verifier",
+            String(artifact.buyer_id),
+          )),
+      },
+    });
+    requireThat(
+      access.statusCode === 200 &&
+        createHash("sha256").update(access.rawPayload).digest("hex") ===
+          artifact.sha256,
+      "buyer_route_failed",
+      "Purchaser route verification failed",
+    );
+    const receipt = {
+      id: id(),
+      batch_id: artifact.batch_id,
+      unit_id: artifact.unit_id,
+      artifact_id: key,
+      buyer_id: artifact.buyer_id,
+      contract_hash: artifact.contract_hash,
+      sha256: artifact.sha256,
+      checker_version: "buyer-route-v1",
+      observed_at: now(),
+      valid_until: new Date(
+        Math.min(
+          ctx.now() + 5 * 60_000,
+          Date.parse(String(artifact.retention_until)),
+        ),
+      ).toISOString(),
+      outcome: "VERIFIED",
+      receipt_hash: digest(artifact),
+    };
+    await ctx.db.create(
+      a.tenant,
+      "verification",
+      verificationKey,
+      receipt,
+      receipt,
+    );
+    return receipt;
+  }
+  // Normal delivery: the merchant's own pipeline delivered this clip. No AI is involved,
+  // because nothing is being recovered; the buyer-route check is the same.
+  endpoint(
+    app,
+    ctx,
+    "POST",
+    "/internal/artifacts/:artifact/deliver",
+    ["commerce"],
+    undefined,
+    async (a, _raw, p) => {
+      const key = uuid.parse(p.artifact);
+      const old = await ctx.db.get<Json>(a.tenant, "artifact", key);
+      requireThat(old, "not_found", "Artifact not found", 404);
+      return publishWithReceipt(a, key, "deliver-" + key);
+    },
+  );
   endpoint(
     app,
     ctx,
@@ -192,67 +273,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
         "recovery_not_supported",
         "AI assessment does not support this recovery action",
       );
-      const artifact = await ctx.db.mutate(
-        a.tenant,
-        "artifact",
-        key,
-        async (body) => {
-          requireThat(
-            body.state === "STORED",
-            "invalid_artifact",
-            "Only validated stored output may be published",
-          );
-          return { ...body, published: true };
-        },
-      );
-      const access = await app.inject({
-        url: "/v1/artifacts/" + key + "/content",
-        headers: {
-          authorization:
-            "Bearer " +
-            (await token(
-              ctx.identity,
-              "delivery",
-              a.tenant,
-              "verifier",
-              String(artifact.buyer_id),
-            )),
-        },
-      });
-      requireThat(
-        access.statusCode === 200 &&
-          createHash("sha256").update(access.rawPayload).digest("hex") ===
-            artifact.sha256,
-        "buyer_route_failed",
-        "Purchaser route verification failed",
-      );
-      const receipt = {
-        id: id(),
-        batch_id: artifact.batch_id,
-        unit_id: artifact.unit_id,
-        artifact_id: key,
-        buyer_id: artifact.buyer_id,
-        contract_hash: artifact.contract_hash,
-        sha256: artifact.sha256,
-        checker_version: "buyer-route-v1",
-        observed_at: now(),
-        valid_until: new Date(
-          Math.min(
-            ctx.now() + 5 * 60_000,
-            Date.parse(String(artifact.retention_until)),
-          ),
-        ).toISOString(),
-        outcome: "VERIFIED",
-        receipt_hash: digest(artifact),
-      };
-      await ctx.db.create(
-        a.tenant,
-        "verification",
-        "publish-" + key + "-" + b.assessment_id,
-        receipt,
-        receipt,
-      );
-      return receipt;
+      return publishWithReceipt(a, key, "publish-" + key + "-" + b.assessment_id);
     },
     z.strictObject({ assessment_id: uuid }),
   );

@@ -135,3 +135,24 @@ These need `PAYPAL_PARTNER_MODE=true`. Without it, every tenant uses the platfor
 - `AI_PRIMARY=vertex`, or `vertex` listed in `AI_FALLBACK_PROVIDERS`, plus `VERTEX_PROJECT` and `VERTEX_CREDITS_CONFIRMED=true`, calls Gemini on Vertex AI as the Cloud service account.
 
 **SDK.** `backend/sdk` is `@assay/node`, a dependency-free TypeScript client. It requires idempotency keys on every write and includes `verifyWebhook`.
+
+**Normal delivery (12 November).**
+
+- `POST /v1/batches/:id/deliver {artifact_id}` (operator or integration) makes an archived clip retrievable by its buyer and returns the buyer-route receipt. Nothing is being recovered, so no AI is involved.
+- On task intake, `deliver_on_archive: true` does the same automatically once the archive is stored. Use it when Assay is your delivery step.
+- Recovery (`/recover`) still needs a valid AI assessment.
+
+**Hosted demo provider.** `POST /v1/demo/batches/:id/simulate-provider` (operator) is for an authorized batch, and only with `DEMO_SIMULATOR=true`.
+
+- Every unit but the last two reports the public test clip `DEMO_CLIP_URL`. The clip's host must be in `REPORTED_OUTPUT_HOSTS`.
+- All but one of those clips are delivered normally. The one left undelivered is the "lost" clip to recover.
+- The last two units never render.
+- The response is labeled `simulated: true`. Nothing is generated.
+
+**Gateway pass-through.** The web gateway forwards three routes without a session:
+
+- `GET /api/commerce/v1/paypal/config`
+- `GET /api/commerce/v1/statements/keys`
+- `POST /api/commerce/v1/signup`, same origin only and limited to 5 per hour per visitor. With `WEB_TRUST_PROXY=true`, the visitor is identified through Caddy. Commerce's own limit is `SIGNUP_RATE_PER_HOUR`.
+
+Signed-in users can also reach `statements/verify` and `demo/…`.

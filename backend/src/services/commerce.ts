@@ -407,11 +407,12 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     p: Record<string, string | undefined>,
     key: string,
   ) => {
-    const input = raw as {
+    const { deliver_on_archive: deliver, ...input } = raw as {
       unit_id: string;
       provider_task_id?: string;
       source?: string;
       output_url?: string;
+      deliver_on_archive?: boolean;
     };
     const b = await batch(a.tenant, p.batch!);
     requireThat(
@@ -443,6 +444,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         await ctx.db.enqueue(q, a.tenant, "commerce", "/internal/tasks/archive", {
           batch_id: b.id,
           attempt_id: String(response.id),
+          ...(deliver ? { deliver: true } : {}),
         });
       return { ...old, state: "RUNNING", version: old.version + 1 };
     });
@@ -458,6 +460,9 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     provider_task_id: z.string().min(1).max(100).optional(),
     source: z.enum(["runway", "replicate", "reported"]).optional(),
     output_url: z.string().regex(/^https:\/\/\S+$/).max(2000).optional(),
+    // Also make the archived clip retrievable by the buyer when it is stored: use this
+    // when Assay is your delivery step, not only your archive.
+    deliver_on_archive: z.boolean().optional(),
   });
   for (const path of ["/v1/batches/:batch/attempts", "/v1/batches/:batch/tasks"])
     endpoint(app, ctx, "POST", path, ["operator"], ["operator", "integration"], registerTask, taskSchema);
@@ -1118,7 +1123,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     ["commerce"],
     undefined,
     async (a, raw) => {
-      const input = raw as { batch_id: string; attempt_id: string };
+      const input = raw as { batch_id: string; attempt_id: string; deliver?: boolean };
       const b = await batch(a.tenant, input.batch_id);
       if (!["AUTHORIZED", "RUNNING"].includes(b.state))
         return { archived: false, reason: "batch_not_running" };
@@ -1140,9 +1145,92 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         { batch_id: b.id, attempt_id: input.attempt_id },
         "archive-" + input.attempt_id,
       );
-      return { archived: artifact.state === "STORED", artifact_id: artifact.id, state: artifact.state };
+      if (input.deliver && artifact.state === "STORED")
+        await ctx.call(
+          "delivery",
+          "/internal/artifacts/" + String(artifact.id) + "/deliver",
+          a.tenant,
+          {},
+          "deliver-" + String(artifact.id),
+        );
+      return {
+        archived: artifact.state === "STORED",
+        delivered: !!input.deliver && artifact.state === "STORED",
+        artifact_id: artifact.id,
+        state: artifact.state,
+      };
     },
-    z.strictObject({ batch_id: uuid, attempt_id: uuid }),
+    z.strictObject({ batch_id: uuid, attempt_id: uuid, deliver: z.boolean().optional() }),
+  );
+  // Hosted Sandbox demo only (DEMO_SIMULATOR=true). Plays the merchant's video provider
+  // for one authorized batch so every visitor gets their own case through the real
+  // pipeline: each "finished" unit reports the same public test clip (DEMO_CLIP_URL, whose
+  // host must be in REPORTED_OUTPUT_HOSTS), Assay archives it, and the merchant's normal
+  // delivery succeeds for all but one. The last two units never produce output.
+  // Nothing here is real generation, and responses say so.
+  endpoint(
+    app,
+    ctx,
+    "POST",
+    "/v1/demo/batches/:batch/simulate-provider",
+    ["operator"],
+    ["operator"],
+    async (a, _raw, p) => {
+      requireThat(process.env.DEMO_SIMULATOR === "true", "demo_disabled", "The demo provider is not enabled here", 404);
+      const clip = process.env.DEMO_CLIP_URL ?? "";
+      requireThat(/^https:\/\/\S+$/.test(clip), "demo_disabled", "DEMO_CLIP_URL is not configured", 503);
+      const b = await batch(a.tenant, p.batch!);
+      requireThat(b.state === "AUTHORIZED", "batch_not_authorized", "Approve the PayPal hold for this batch first");
+      const n = b.units.length;
+      const failed = n >= 3 ? 2 : 0;
+      const produced = n - failed;
+      const lost = produced - 1; // index of the clip whose delivery step "fails"
+      const registered: { clip: number; unit_id: string; delivered: boolean }[] = [];
+      for (let i = 0; i < produced; i++) {
+        const unit = b.units[i]!;
+        await registerTask(
+          a,
+          {
+            unit_id: unit.id,
+            source: "reported",
+            provider_task_id: "demo-" + b.id.slice(0, 8) + "-" + (i + 1),
+            output_url: clip,
+            deliver_on_archive: i !== lost,
+          },
+          { batch: b.id },
+          "demo-task-" + unit.id,
+        );
+        registered.push({ clip: i + 1, unit_id: unit.id, delivered: i !== lost });
+      }
+      return {
+        simulated: true,
+        label: "Demo provider: a public test clip stands in for generated video. No real generation ran.",
+        delivered_clips: registered.filter((r) => r.delivered).map((r) => r.clip),
+        lost_clip: lost + 1,
+        never_rendered_clips: Array.from({ length: failed }, (_, k) => produced + k + 1),
+        note: "Archiving runs in the background; refresh the batch in a few seconds.",
+      };
+    },
+  );
+  // Explicit normal delivery of an archived clip (the merchant's pipeline delivered it).
+  endpoint(
+    app,
+    ctx,
+    "POST",
+    "/v1/batches/:batch/deliver",
+    ["operator"],
+    ["operator", "integration"],
+    async (a, raw, p, key) => {
+      const b = await batch(a.tenant, p.batch!);
+      requireThat(["AUTHORIZED", "RUNNING"].includes(b.state), "batch_locked", "Batch is locked");
+      const artifactId = (raw as { artifact_id: string }).artifact_id;
+      const { artifacts } = (await ctx.call("delivery", "/internal/batches/" + b.id + "/artifacts", a.tenant)) as {
+        artifacts: Json[];
+      };
+      requireThat(artifacts.some((x) => x.id === artifactId), "not_found", "Artifact not found in this batch", 404);
+      return ctx.call("delivery", "/internal/artifacts/" + artifactId + "/deliver", a.tenant, {}, key);
+    },
+    z.strictObject({ artifact_id: uuid }),
   );
   endpoint(
     app,

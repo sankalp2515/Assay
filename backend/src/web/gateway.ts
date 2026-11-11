@@ -31,6 +31,8 @@ export interface GatewayOptions {
   // Signs a visitor in as the configured demo member for that role. Never use with real
   // money or real customer data; /api/session reports demo: true so the UI can say so.
   demoLogin?: boolean;
+  // Behind a reverse proxy (Caddy) the client address comes from X-Forwarded-For.
+  trustProxy?: boolean;
 }
 const random = () => randomBytes(32).toString("base64url");
 const equal = (a: string, b: string) =>
@@ -71,7 +73,7 @@ export async function createGateway(options: GatewayOptions) {
   const loginCookie = o.localOnly ? "pvd-local-login" : "__Host-pvd-login";
   const cookie = (name: string, value: string, maxAge: number) =>
     `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${o.localOnly ? "" : "; Secure"}`;
-  const app = Fastify({ logger: false, bodyLimit: 65536, trustProxy: false });
+  const app = Fastify({ logger: false, bodyLimit: 65536, trustProxy: o.trustProxy === true });
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {
@@ -289,6 +291,41 @@ export async function createGateway(options: GatewayOptions) {
     reply.header("Set-Cookie", cookie(cookieName, "", 0));
     return { signed_out: true };
   });
+  // Public Commerce routes that need no session: the PayPal button configuration, the
+  // statement verification keys, and merchant sign-up (Commerce decides whether sign-up
+  // is open). Sign-up is same-origin only and limited per visitor here as well.
+  const passThrough = async (
+    method: "GET" | "POST",
+    path: string,
+    reply: { code: (n: number) => unknown; header: (k: string, v: string) => unknown; send: (b: unknown) => unknown },
+    body?: unknown,
+  ) => {
+    const response = await (o.network || fetch)(o.commerceUrl + path, {
+      method,
+      redirect: "error",
+      signal: AbortSignal.timeout(15000),
+      headers: method === "POST" ? { "Content-Type": "application/json" } : {},
+      ...(method === "POST" ? { body: JSON.stringify(body ?? {}) } : {}),
+    });
+    reply.code(response.status);
+    reply.header("Content-Type", response.headers.get("content-type") || "application/json");
+    return reply.send(await response.text());
+  };
+  app.get("/api/commerce/v1/paypal/config", async (_req, reply) =>
+    passThrough("GET", "/v1/paypal/config", reply),
+  );
+  app.get("/api/commerce/v1/statements/keys", async (_req, reply) =>
+    passThrough("GET", "/v1/statements/keys", reply),
+  );
+  app.post(
+    "/api/commerce/v1/signup",
+    { config: { rateLimit: { max: 5, timeWindow: "1 hour" } } },
+    async (req, reply) => {
+      if (req.headers.origin !== o.origin)
+        return reply.code(403).send({ message: "Sign up from this site" });
+      return passThrough("POST", "/v1/signup", reply, req.body);
+    },
+  );
   app.route({
     method: ["GET", "POST"],
     url: "/api/:service/*",
@@ -312,7 +349,7 @@ export async function createGateway(options: GatewayOptions) {
         !["commerce", "delivery"].includes(p.service) ||
         !/^\/v1\/[a-zA-Z0-9/_-]+$/.test(path) ||
         (p.service === "commerce" &&
-          !/^\/v1\/(batches|operations|readiness|controls|support|account|api-keys|buyer-sessions|merchant)(\/|$)/.test(
+          !/^\/v1\/(batches|operations|readiness|controls|support|account|api-keys|buyer-sessions|merchant|statements\/verify|paypal\/config|demo)(\/|$)/.test(
             path,
           ))
       )

@@ -8,6 +8,15 @@ services:
   commerce:
     environment:
       BUYER_RETURN_BASE: https://${ASSAY_DOMAIN:?Set ASSAY_DOMAIN}
+      # The gateway limits sign-up per visitor; Commerce sees only the gateway's address.
+      SIGNUP_RATE_PER_HOUR: ${SIGNUP_RATE_PER_HOUR:-100}
+      # Each demo visitor gets a fresh case: the demo provider reports a public test clip
+      # served by this site. Never enable on a deployment with real merchants.
+      DEMO_SIMULATOR: ${DEMO_SIMULATOR:-true}
+      DEMO_CLIP_URL: ${DEMO_CLIP_URL:-https://${ASSAY_DOMAIN}/demo/test-clip.mp4}
+  provider:
+    environment:
+      REPORTED_OUTPUT_HOSTS: ${ASSAY_DOMAIN}
   payments:
     environment:
       PAYPAL_RETURN_URL: https://${ASSAY_DOMAIN}/v1/paypal/return
@@ -17,6 +26,7 @@ services:
       # Originals go to the private bucket; the VM's service account writes them.
       ARTIFACT_STORE: gcs
       GCS_BUCKET: ${GCS_BUCKET:?Set GCS_BUCKET}
+      REPORTED_OUTPUT_HOSTS: ${ASSAY_DOMAIN}
   web-db:
     image: postgres:18-bookworm
     environment: { POSTGRES_PASSWORD: "${WEB_DB_PASSWORD}", POSTGRES_DB: web }
@@ -39,6 +49,7 @@ services:
       WEB_MEMBERS_JSON: ${WEB_MEMBERS_JSON:?Set demo members}
       WEB_MERCHANT_NAME: ${WEB_MERCHANT_NAME:-Demo merchant (Sandbox)}
       WEB_DEMO_LOGIN: ${WEB_DEMO_LOGIN:-true}
+      WEB_TRUST_PROXY: "true"
       WEB_COMMERCE_URL: http://commerce:4100
       WEB_DELIVERY_URL: http://delivery:4102
       WEB_OIDC_ISSUER: ${WEB_OIDC_ISSUER:-}

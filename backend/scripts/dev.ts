@@ -86,6 +86,9 @@ const children = services.map((name, index) => {
                   "PAYPAL_CLIENT_ID",
                   "SIGNUP_MODE",
                   "SIGNUP_INVITE_CODE",
+                  "SIGNUP_RATE_PER_HOUR",
+                  "DEMO_SIMULATOR",
+                  "DEMO_CLIP_URL",
                 ]
               : [];
   for (const key of specific) if (process.env[key]) env[key] = process.env[key];
