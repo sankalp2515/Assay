@@ -1,6 +1,7 @@
 import { harness } from "../test/harness.js";
 import { mkdir, writeFile } from "node:fs/promises";
 import { services } from "../src/domain/contracts.js";
+import { merchantCollection, environment } from "./postman.js";
 const h = await harness();
 try {
   await mkdir("docs/openapi", { recursive: true });
@@ -66,8 +67,12 @@ try {
     "docs/postman.collection.json",
     JSON.stringify(collection, null, 2),
   );
+  await mkdir("docs/postman", { recursive: true });
+  await writeFile("docs/postman/assay-merchant.postman_collection.json", JSON.stringify(merchantCollection(), null, 2));
+  await writeFile("docs/postman/local.postman_environment.json", JSON.stringify(environment("Assay local", "http://127.0.0.1:4100"), null, 2));
+  await writeFile("docs/postman/hosted-sandbox.postman_environment.json", JSON.stringify(environment("Assay hosted Sandbox", "https://<your-domain>"), null, 2));
   console.log(
-    "Exported five OpenAPI documents and a Postman smoke collection.",
+    "Exported five OpenAPI documents, a Postman smoke collection and the merchant collection.",
   );
 } finally {
   await h.close();

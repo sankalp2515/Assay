@@ -9,6 +9,7 @@ import type {
 import type { Interpretation } from "../domain/claims.js";
 import type { Currency } from "../domain/money.js";
 import type { BlobStore } from "../adapters/storage.js";
+import type { PlaybackProber } from "../adapters/kernel.js";
 // Batch currency, and the PayPal merchant the money belongs to. Without merchantId the
 // platform's own PayPal account is used (single-merchant deployments).
 export type PayOptions = { currency?: Currency; merchantId?: string };
@@ -85,6 +86,8 @@ export interface Context {
   artifactDir: string;
   // Archived originals. Defaults to files in artifactDir.
   store?: BlobStore;
+  // External playback proof (KERNEL), Delivery only.
+  prober?: PlaybackProber;
   allowPaid: boolean;
   maxAttempts: number;
   merchantId: string;

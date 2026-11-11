@@ -1,0 +1,16 @@
+{
+  "at": "2026-11-11T21:17:49.336Z",
+  "kind": "real KERNEL cloud browser; public CC0 test clip, not an Assay artifact",
+  "clip": "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+  "expected_sha256": "0cd83d944a6ca7822b4a8306cecc60a36e859b041f6702c6a1ad9ead78924451",
+  "outcome": "PLAYED",
+  "digest_matches": true,
+  "bytes": 1128375,
+  "played_to_seconds": 0.64181,
+  "duration_seconds": 5.055,
+  "resolution": "960x540",
+  "replay_recorded": true,
+  "elapsed_ms": 6881,
+  "browser": "kernel-chromium",
+  "error": null
+}

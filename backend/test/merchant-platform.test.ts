@@ -533,3 +533,105 @@ test("gateway passes PayPal config, statement keys and same-origin sign-up throu
     await h.close();
   }
 });
+
+test("external playback probe runs after delivery, off the money path, and feeds dispute evidence", async () => {
+  const h = await harness();
+  const seen: Json[] = [];
+  h.contexts.delivery.prober = {
+    available: true,
+    probe: async (input) => {
+      seen.push({ ...input, bearer: input.bearer ? "present" : "absent" });
+      return {
+        outcome: "PLAYED",
+        http_status: 200,
+        bytes: 1000,
+        sha256: input.expectedSha256 ?? null,
+        current_time: 0.7,
+        duration: 4,
+        width: 1280,
+        height: 720,
+        replay_id: "rep_1",
+        replay_view_url: "https://example.invalid/replay",
+        browser: "kernel-chromium",
+        error: null,
+      };
+    },
+  };
+  await withEnv({ PLAYBACK_PROBE_ORIGIN: "https://assay.example", KERNEL_MAX_PROBES_PER_DAY: "1" }, async () => {
+    try {
+      const b = await h.setup(3);
+      const arts = await h.seed(b, 2, false);
+      for (const art of arts)
+        assert.equal((await h.request("/v1/batches/" + b.id + "/deliver", { artifact_id: art.id })).statusCode, 200);
+      await drain(h.contexts.delivery, h.tenant);
+      assert.equal(seen.length, 1); // daily budget of one
+      assert.equal(seen[0]!.contentUrl, "https://assay.example/v1/artifacts/" + arts[0]!.id + "/content");
+      assert.equal(seen[0]!.bearer, "present");
+      const op = (await h.request("/v1/batches/" + b.id + "/playback")).json<Json>();
+      assert.equal(op.enabled, true);
+      const outcomes = (op.probes as Json[]).map((x) => x.outcome).sort();
+      assert.deepEqual(outcomes, ["PLAYED", "SKIPPED_BUDGET"]);
+      const played = (op.probes as Json[]).find((x) => x.outcome === "PLAYED")!;
+      assert.equal(played.digest_matches, true);
+      assert.equal(played.replay_view_url, "https://example.invalid/replay");
+      const buyer = (await h.request("/v1/batches/" + b.id + "/playback", undefined, "buyer")).json<Json>();
+      assert.ok((buyer.probes as Json[]).every((x) => !("replay_view_url" in x)));
+      const evidence = (await h.request("/v1/batches/" + b.id + "/disputes")).json<Json>();
+      assert.equal((evidence.playback_evidence as Json[]).length, 2);
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+test("probe failures are recorded, never thrown into delivery", async () => {
+  const h = await harness();
+  h.contexts.delivery.prober = { available: true, probe: async () => { throw new Error("KERNEL down"); } };
+  await withEnv({ PLAYBACK_PROBE_ORIGIN: "https://assay.example" }, async () => {
+    try {
+      const b = await h.setup(1);
+      const [art] = await h.seed(b, 1, false);
+      assert.equal((await h.request("/v1/batches/" + b.id + "/deliver", { artifact_id: art!.id })).statusCode, 200);
+      await drain(h.contexts.delivery, h.tenant);
+      const op = (await h.request("/v1/batches/" + b.id + "/playback")).json<Json>();
+      assert.equal((op.probes as Json[])[0]!.outcome, "PROBE_ERROR");
+      assert.equal((op.probes as Json[])[0]!.error, "KERNEL down");
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+test("timeline and operations dashboard: observed facts and labeled estimates", async () => {
+  const h = await harness();
+  try {
+    const b = await h.setup(10);
+    await h.seed(b, 7);
+    const lost = await h.seed(b, 1, false, 7);
+    const tl = await h.request("/v1/batches/" + b.id + "/timeline");
+    assert.equal(tl.statusCode, 200, tl.body);
+    const t = tl.json<Json>();
+    assert.equal((t.resources as Json[]).length, 11); // PayPal row + 10 clips
+    const events = t.events as Json[];
+    assert.ok(events.some((e) => e.kind === "authorization_honor" && e.basis === "ESTIMATE"));
+    assert.ok(events.some((e) => e.kind === "authorization_validity" && e.basis === "OBSERVED"));
+    assert.ok(events.some((e) => e.kind === "archive" && e.resourceId === lost[0]!.unit_id));
+    assert.ok(!events.some((e) => e.kind === "retrievable" && e.resourceId === lost[0]!.unit_id));
+    assert.ok(events.every((e) => ["OBSERVED", "ESTIMATE"].includes(String(e.basis))));
+    const s = await h.settle(b);
+    await s.execute();
+    await drain(h.contexts.payments, h.tenant);
+    const dash = (await h.request("/v1/operations/dashboard")).json<Json>();
+    const row = (dash.rows as Json[]).find((r) => r.batch_id === b.id)!;
+    assert.equal(row.currency, "USD");
+    assert.equal(row.archived_not_delivered, 1);
+    assert.equal(row.charged_minor, 3500);
+    assert.equal(row.not_taken_minor, 1500);
+    const clips = (await h.request("/v1/operations/dashboard?level=clip")).json<Json>().rows as Json[];
+    assert.equal(clips.filter((c) => c.batch_id === b.id).length, 10);
+    assert.equal(clips.find((c) => c.unit_id === lost[0]!.unit_id)!.delivered, false);
+    assert.equal((await h.request("/v1/operations/dashboard", undefined, "buyer")).statusCode, 403);
+  } finally {
+    await h.close();
+  }
+});

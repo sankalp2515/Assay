@@ -86,7 +86,7 @@ Keep your provider and your generation code. Register each provider task as you 
 - **Disputes.** While a PayPal dispute is open, refunds pause so the buyer is never paid twice. The signed statement is ready to attach as evidence.
 - **Your own PayPal account.** Merchants can connect their own account through PayPal partner onboarding. This needs PayPal's partner approval first.
 
-What a production merchant still needs: [REAL_USER_READINESS.md](product/REAL_USER_READINESS.md). Hosting plan: [DEPLOY.md](backend/docs/DEPLOY.md).
+What a production merchant still needs: [REAL_USER_READINESS.md](product/REAL_USER_READINESS.md). Hosting plan: [DEPLOY.md](backend/docs/DEPLOY.md). How each sponsor's technology is used: [SPONSORS.md](backend/docs/SPONSORS.md).
 
 ## Evidence
 
@@ -100,7 +100,9 @@ Each line says what kind of evidence it is.
 | AI reading of buyer messages: Gemini 25/30 vs keyword baseline 15/30, all 30 answered, 0 invalid readings. An earlier run scored 18/30 because 7 cases hit Google outages | `backend/evidence/claim-reading-evaluation.json` | Real Gemini; 30 authored held-out messages; second single run, no variance estimate |
 | AI action choice on structured facts vs rules | `backend/evidence/investigation-evaluation.json` | Real Gemini 17/20, rules 20/20. This is why AI does not decide actions |
 | Concurrency, RLS, money bounds, encrypted restore | `backend/evidence/native-postgres.json` | Native PostgreSQL, local |
-| Full local gate: 63/63 tests (including task intake, auto-archive, signed webhooks, the PayPal return redirect, API keys and scopes, EUR settlement, disputes, merchant PayPal onboarding, GCS storage, Vertex AI and the SDK), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
+| Full local gate: 66/66 tests (including task intake, auto-archive, signed webhooks, the PayPal return redirect, API keys and scopes, EUR settlement, disputes, merchant PayPal onboarding, GCS storage, Vertex AI and the SDK), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
+| A real cloud browser (KERNEL) fetched a clip over the internet, matched its SHA-256 and played it, with a session replay. Assay uses this as external playback proof for delivered clips | `backend/evidence/kernel-playback.json` | Real KERNEL; public CC0 clip, not yet an Assay-hosted clip |
+| The merchant Postman collection (sign-up, keys, idempotency, scopes, buyer session, PayPal hold, rotation) run headless with Newman: 21 of 21 assertions pass | `backend/evidence/postman-run.json` | Local HTTP; fixture PayPal and AI |
 | Microservices in Docker: 11 healthy containers, signed cross-service calls, real Gemini via the Investigation container | `backend/evidence/container-smoke.json` | Local Docker, 11 November build; not rerun on the 12 November additions; no PayPal order or generation |
 
 ## Architecture

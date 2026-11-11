@@ -156,3 +156,10 @@ These need `PAYPAL_PARTNER_MODE=true`. Without it, every tenant uses the platfor
 - `POST /api/commerce/v1/signup`, same origin only and limited to 5 per hour per visitor. With `WEB_TRUST_PROXY=true`, the visitor is identified through Caddy. Commerce's own limit is `SIGNUP_RATE_PER_HOUR`.
 
 Signed-in users can also reach `statements/verify` and `demo/…`.
+
+**Sponsor-backed views (12 November).** See [SPONSORS.md](SPONSORS.md).
+
+- `GET /v1/batches/:id/playback` returns KERNEL external playback probes. Operators also get `replay_view_url` and `error`; buyers get the outcome only. Enabled by `KERNEL_API_KEY` plus `PLAYBACK_PROBE_ORIGIN`, the public https origin that serves `/v1/artifacts/{id}/content`. The daily cap is `KERNEL_MAX_PROBES_PER_DAY`.
+- `GET /v1/batches/:id/timeline` (operator) returns `{resources, events, at_risk_unit_ids}`, shaped for a resource scheduler. Each event is `OBSERVED` or `ESTIMATE`.
+- `GET /v1/operations/dashboard?level=batch|clip&limit=` (operator) returns one row per batch or per clip, with money in each row's own currency.
+- Artifacts carry `published_at`.

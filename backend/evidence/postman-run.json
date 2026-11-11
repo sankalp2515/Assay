@@ -1,0 +1,8 @@
+{
+  "at": "2026-11-11T21:22:02.197Z",
+  "target": "in-process services, fixture PayPal and AI, local HTTP",
+  "requests": 23,
+  "assertions": 21,
+  "assertions_failed": 0,
+  "failures": []
+}

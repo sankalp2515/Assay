@@ -14,6 +14,11 @@
 	handle /v1/paypal/webhooks {
 		reverse_proxy payments:4104
 	}
+	# Buyer clip route (bearer-authenticated by Delivery). Used by buyers' players and by
+	# the external playback probe.
+	handle /v1/artifacts/* {
+		reverse_proxy delivery:4102
+	}
 	# The merchant API (API keys), PayPal return pages, statements and the public
 	# PayPal button configuration.
 	handle /v1/* {

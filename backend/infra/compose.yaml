@@ -161,6 +161,9 @@ services:
       ARTIFACT_STORE: ${ARTIFACT_STORE:-local}
       GCS_BUCKET: ${GCS_BUCKET:-}
       GCS_PREFIX: ${GCS_PREFIX:-artifacts/}
+      KERNEL_API_KEY: ${KERNEL_API_KEY:-}
+      PLAYBACK_PROBE_ORIGIN: ${PLAYBACK_PROBE_ORIGIN:-}
+      KERNEL_MAX_PROBES_PER_DAY: ${KERNEL_MAX_PROBES_PER_DAY:-40}
     networks: [default, verifier-net]
     volumes: ["artifacts:/app/artifacts"]
     ports: ["127.0.0.1:${DELIVERY_HOST_PORT:-4102}:4102"]

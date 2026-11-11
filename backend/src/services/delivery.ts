@@ -11,7 +11,9 @@ import { LocalStore } from "../adapters/storage.js";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { playbackRoutes, queueProbe } from "./playback.js";
 export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
+  playbackRoutes(app, ctx);
   // Make a stored, validated original retrievable by its purchaser, then prove it: fetch
   // it through the buyer's own route and compare the digest. Returns the receipt.
   async function publishWithReceipt(a: { tenant: string }, key: string, verificationKey: string) {
@@ -25,7 +27,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
           "invalid_artifact",
           "Only validated stored output may be published",
         );
-        return { ...body, published: true };
+        return { ...body, published: true, published_at: body.published_at ?? now() };
       },
     );
     const access = await app.inject({
@@ -75,6 +77,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
       receipt,
       receipt,
     );
+    await queueProbe(ctx, a.tenant, key);
     return receipt;
   }
   // Normal delivery: the merchant's own pipeline delivered this clip. No AI is involved,
@@ -372,6 +375,7 @@ function publicArtifact(a: Json) {
     duration,
     bytes,
     stored_at,
+    published_at,
   } = a;
   return {
     id,
@@ -388,5 +392,6 @@ function publicArtifact(a: Json) {
     duration,
     bytes,
     stored_at,
+    published_at: published_at ?? null,
   };
 }

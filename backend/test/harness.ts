@@ -435,6 +435,8 @@ export async function harness(
         contract_hash: batch.contract_hash,
         state: "STORED",
         published,
+        stored_at: new Date().toISOString(),
+        ...(published ? { published_at: new Date().toISOString() } : {}),
         retention_until: batch.retention_until,
         ...checked,
       };

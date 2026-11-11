@@ -125,6 +125,68 @@
         }
       }
     },
+    "/internal/artifacts/{artifact}/playback-probe": {
+      "post": {
+        "summary": "/internal/artifacts/:artifact/playback-probe",
+        "tags": [
+          "delivery"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "artifact",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/batches/{batch}/playback": {
+      "get": {
+        "summary": "/internal/batches/:batch/playback",
+        "tags": [
+          "delivery"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "batch",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/internal/artifacts/{artifact}/deliver": {
       "post": {
         "summary": "/internal/artifacts/:artifact/deliver",

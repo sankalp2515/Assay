@@ -72,6 +72,9 @@ const children = services.map((name, index) => {
                 "ARTIFACT_STORE",
                 "GCS_BUCKET",
                 "GCS_PREFIX",
+                "KERNEL_API_KEY",
+                "PLAYBACK_PROBE_ORIGIN",
+                "KERNEL_MAX_PROBES_PER_DAY",
                 "GOOGLE_ACCESS_TOKEN",
               ]
             : name === "commerce"

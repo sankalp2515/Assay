@@ -2207,6 +2207,37 @@
         }
       }
     },
+    "/v1/batches/{batch}/playback": {
+      "get": {
+        "summary": "/v1/batches/:batch/playback",
+        "tags": [
+          "commerce"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "batch",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/batches/{batch}/disputes": {
       "get": {
         "summary": "/v1/batches/:batch/disputes",
@@ -2241,6 +2272,58 @@
     "/internal/disputes/notify": {
       "post": {
         "summary": "/internal/disputes/notify",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/batches/{batch}/timeline": {
+      "get": {
+        "summary": "/v1/batches/:batch/timeline",
+        "tags": [
+          "commerce"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "batch",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/operations/dashboard": {
+      "get": {
+        "summary": "/v1/operations/dashboard",
         "tags": [
           "commerce"
         ],

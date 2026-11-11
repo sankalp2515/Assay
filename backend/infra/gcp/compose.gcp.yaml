@@ -27,6 +27,8 @@ services:
       ARTIFACT_STORE: gcs
       GCS_BUCKET: ${GCS_BUCKET:?Set GCS_BUCKET}
       REPORTED_OUTPUT_HOSTS: ${ASSAY_DOMAIN}
+      # KERNEL's browser fetches clips from the public buyer route on this site.
+      PLAYBACK_PROBE_ORIGIN: https://${ASSAY_DOMAIN}
   web-db:
     image: postgres:18-bookworm
     environment: { POSTGRES_PASSWORD: "${WEB_DB_PASSWORD}", POSTGRES_DB: web }

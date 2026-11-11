@@ -6,6 +6,7 @@ import { httpTransport, dispatchOutbox } from "./core/transport.js";
 import { maintain } from "./core/maintenance.js";
 import { knownTenants } from "./core/tenants.js";
 import { configuredStore } from "./adapters/storage.js";
+import { KernelProber } from "./adapters/kernel.js";
 import { PayPalSandbox } from "./adapters/paypal.js";
 import { GeminiInvestigator } from "./adapters/gemini.js";
 import { configuredInvestigator } from "./adapters/models.js";
@@ -78,7 +79,10 @@ if (name === "provider") {
   );
   ctx.providers = { replicate: new Replicate(process.env.REPLICATE_API_TOKEN ?? "") };
 }
-if (name === "delivery") ctx.store = configuredStore(ctx.artifactDir);
+if (name === "delivery") {
+  ctx.store = configuredStore(ctx.artifactDir);
+  ctx.prober = new KernelProber(process.env.KERNEL_API_KEY ?? "");
+}
 const app = await createApp(ctx);
 let busy = false;
 let stopping = false;

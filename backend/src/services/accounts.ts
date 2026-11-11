@@ -9,6 +9,7 @@ import { emitEvent } from "../core/webhooks.js";
 import { now, stableId, uuid, type Json } from "../domain/contracts.js";
 import { CURRENCIES } from "../domain/money.js";
 import { PLATFORM_TENANT, registerTenant } from "../core/tenants.js";
+import { publicProbe } from "./playback.js";
 // Singleton rows per tenant use a fixed, valid entity id.
 const CURRENT = stableId("singleton");
 
@@ -256,11 +257,41 @@ export function accountRoutes(app: FastifyInstance, ctx: Context) {
     z.strictObject({ merchant_id: z.string().regex(/^[A-Z0-9]{8,20}$/) }),
   );
 
+  // ---- External playback proof (KERNEL). The merchant sees the replay link; the buyer
+  // sees only the outcome for their own batch.
+  endpoint(
+    app,
+    ctx,
+    "GET",
+    "/v1/batches/:batch/playback",
+    ["operator"],
+    ["operator", "integration", "buyer"],
+    async (a, _b, p) => {
+      const batch = uuid.parse(p.batch);
+      const b = await ctx.db.get<Json>(a.tenant, "batch", batch);
+      requireThat(b && (a.role !== "buyer" || b.buyer_id === a.subject), "not_found", "Batch not found", 404);
+      const r = (await ctx.call("delivery", "/internal/batches/" + batch + "/playback", a.tenant)) as {
+        enabled: boolean;
+        probes: Json[];
+      };
+      return {
+        enabled: r.enabled,
+        what: "A real Chromium browser outside Assay's network (KERNEL) fetched each delivered clip over the public internet, compared its SHA-256 with the archived original, and played it. Settlement never depends on this.",
+        probes: r.probes.map((x) =>
+          a.role === "buyer" ? publicProbe(x) : { ...publicProbe(x), replay_view_url: x.replay_view_url ?? null, error: x.error ?? null },
+        ),
+      };
+    },
+  );
+
   // ---- Disputes: PayPal's record, plus the evidence the merchant attaches in PayPal.
   endpoint(app, ctx, "GET", "/v1/batches/:batch/disputes", ["operator"], ["operator"], async (a, _b, p) => {
     const batch = uuid.parse(p.batch);
     const { disputes } = (await ctx.call("payments", "/internal/batches/" + batch + "/disputes", a.tenant)) as {
       disputes: Json[];
+    };
+    const playback = (await ctx.call("delivery", "/internal/batches/" + batch + "/playback", a.tenant)) as {
+      probes: Json[];
     };
     let statement: Json | null = null;
     try {
@@ -271,6 +302,8 @@ export function accountRoutes(app: FastifyInstance, ctx: Context) {
     return {
       disputes,
       refunds_paused: disputes.some((d) => d.status !== "RESOLVED"),
+      // Independent real-browser playback of each delivered clip (KERNEL), when enabled.
+      playback_evidence: playback.probes.map(publicProbe),
       evidence: statement?.signed
         ? {
             kind: "signed per-clip delivery statement",
