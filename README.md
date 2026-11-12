@@ -4,27 +4,36 @@
 
 # Assay
 
-**Recover missing AI video. Charge for verified delivery.**
+### AI outcome assurance for video delivery
 
-Assay helps video apps find finished clips that never reached the buyer.<br />
-Recover the original, verify buyer access, and settle through PayPal.
+**Charge only for the AI clips a buyer actually got. Recover the ones that were made but never arrived, before anyone pays to make them again.**
 
-[**Open the Sandbox demo**](https://assay-34-59-154-73.sslip.io/api/demo-login?as=operator&returnTo=%2F%23%2Fstart) · [Run locally](#run-locally) · [SDK and MCP](#plug-it-into-your-app) · [Release downloads](https://github.com/sankalp2515/Assay/releases)
-
+[![Live demo](https://img.shields.io/badge/live_demo-PayPal_Sandbox-0070E0?style=for-the-badge&logo=paypal&logoColor=white)](https://assay-34-59-154-73.sslip.io)
+[![API collection](https://img.shields.io/badge/API-Postman_collection-FF6C37?style=for-the-badge&logo=postman&logoColor=white)](backend/docs/postman)
+[![License: MIT](https://img.shields.io/badge/license-MIT-111111?style=for-the-badge)](LICENSE)
 [![CI](https://github.com/sankalp2515/Assay/actions/workflows/ci.yml/badge.svg)](https://github.com/sankalp2515/Assay/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-222222)](LICENSE)
+
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Node 22](https://img.shields.io/badge/Node-22-5FA04E?logo=nodedotjs&logoColor=white)
+![Fastify](https://img.shields.io/badge/Fastify-000000?logo=fastify&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-RLS-4169E1?logo=postgresql&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?logo=react&logoColor=black)
+![Gemini](https://img.shields.io/badge/Gemini-8E75B2?logo=googlegemini&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
+
+[**Live demo**](https://assay-34-59-154-73.sslip.io) · [How it works](#how-it-works) · [Try it locally](#try-it-in-two-minutes) · [Integrate](#plug-it-into-your-app) · [Evidence](#evidence) · [Architecture](#architecture)
 
 <br />
 
-<img src="docs/media/investigation.jpg" alt="Assay investigation workspace tracing a missing clip from agreement to settlement" width="960" />
+<img src="docs/media/landing.jpg" alt="Assay landing page: The model finished. Can you prove your customer got it?" width="900" />
 
 </div>
 
-In a [hosted Sandbox run](backend/evidence/hosted-sandbox-run.json), the buyer authorized **$50 for ten clips**. Assay recovered clip 08, verified access to eight clips, and PayPal confirmed **one $40 capture**. The remaining $10 was never charged. The demo provider used pre-generated LTX-Video clips.
+---
 
 ## The problem
 
-An AI-video provider can finish a render while the buyer still sees a failed delivery. A merchant has to find the original before the provider deletes it, decide whether another render is needed, and determine what to charge.
+AI-video apps lose money twice when a render "fails".
 
 Generation APIs delete outputs on a timer:
 
@@ -34,6 +43,8 @@ Generation APIs delete outputs on a timer:
 | Google Veo | 2 days | [docs](https://aistudio.google.com/docs/veo) |
 | Runway | 24–48 hours | [docs](https://docs.dev.runwayml.com/assets/outputs/) |
 
+If the app's callback, worker or download step fails inside that window, a finished, paid-for video is lost. The app then pays the provider to render it again, or refunds the customer for work that was actually done. Payments, models, queues, storage and the app each keep their own version of the truth, and the customer sees "failed".
+
 ## What Assay does
 
 Assay is **not a video generator**. It sits between the generator a business already uses and the buyer's PayPal payment:
@@ -41,7 +52,7 @@ Assay is **not a video generator**. It sits between the generator a business alr
 1. **Authorize a ceiling.** The buyer agrees to fixed terms, and PayPal holds the maximum (10 clips × $5 = **$50**).
 2. **Recover before re-rendering.** Assay archives each provider output as it finishes. When a clip goes missing, AI reads the records through read-only tools and cites what it used. The original file is restored, not generated again.
 3. **Verify delivery.** A clip counts only when the buyer can fetch it through their own route and the bytes match the archived SHA-256. An outside cloud browser (KERNEL) also plays it.
-4. **Capture the verified amount.** The merchant approves an exact, expiring proposal. In the reference case, PayPal confirmed one **$40** capture for eight clips. The other $10 was never charged.
+4. **Capture exactly once.** The server computes the amount from verified clips. The merchant approves one exact, expiring proposal. PayPal captures **$40** for 8 clips, and the other $10 is released, not refunded.
 5. **Prove it.** The buyer gets an Ed25519-signed per-clip statement that anyone can verify.
 
 > **AI proposes. Rules decide. PayPal moves the money once.** AI never sets a price, approves a charge or moves money.
@@ -76,7 +87,7 @@ Assay is **not a video generator**. It sits between the generator a business alr
 | Buyer describes the problem in their own words | Reads free text into clip numbers, issue types and literal quotes; flags attempts to instruct the system | Validates quotes and clip numbers, then decides each clip from delivery and payment records | — |
 | A clip looks missing | Investigates provider, delivery and payment evidence with scoped read tools and cites them | Checks citations against current evidence; restores only a verified original | — |
 | Buyer approves the order | — | Immutable contract: clip count, price, ceiling | Orders API **AUTHORIZE** for the ceiling |
-| Settlement | Cannot set prices, approve or move money | Server computes the amount from verified clips and the merchant approves an exact, expiring proposal | **Final partial capture** with an invoice reference and summary note, or a **void** when nothing was delivered |
+| Settlement | Cannot set prices, approve or move money | Server computes the amount; merchant approves an exact, expiring proposal | **One partial capture** with per-clip `note_to_payer` and `invoice_id`, or a **void** when nothing was delivered |
 | After settlement | — | Refunds bounded by the confirmed capture | **Refunds** against the original capture; **webhooks** verified with PayPal's signature API; read-back before anything shows as paid |
 
 ## For judges
@@ -91,13 +102,11 @@ Assay is **not a video generator**. It sits between the generator a business alr
 | **Merchant API** | Postman collection and hosted environment in [backend/docs/postman](backend/docs/postman). The sign-up invite code is in the Devpost testing instructions. |
 | **Landing mirror** | https://assay-sandbox.onrender.com (static landing page and walkthrough only). |
 
-## Run locally
+## Try it in two minutes
 
-The fixture walkthrough needs no credentials or test funds. Docker may need to download build dependencies on the first run. The demo container runs without network access.
+No keys, no network, no money. With Docker only (the container has no network access):
 
 ```bash
-git clone https://github.com/sankalp2515/Assay.git
-cd Assay
 cd backend
 docker compose -f infra/compose.demo.yaml run --rm demo
 ```
@@ -147,16 +156,8 @@ Type check, unit and integration tests, native PostgreSQL checks (concurrency, R
 
 Keep your provider and your generation code. Register each provider task as you submit it, and Assay archives the output when it finishes. Three steps: [INTEGRATE.md](backend/docs/INTEGRATE.md).
 
-### Node SDK
-
-Install the SDK from the GitHub release:
-
-```sh
-npm install https://github.com/sankalp2515/Assay/releases/download/v0.1.0/sankalp2515-assay-node-0.1.0.tgz
-```
-
 ```ts
-import { Assay } from "@sankalp2515/assay-node";
+import { Assay } from "@assay/node";
 
 const assay = new Assay({ apiKey: process.env.ASSAY_API_KEY!, baseUrl: "https://assay.example.com" });
 
@@ -180,14 +181,6 @@ await assay.batches.registerTask(batch.id, { unit_id, source: "replicate", provi
 | **Currencies** | USD, EUR, GBP, CAD, AUD, JPY; one currency per batch |
 | **Disputes** | Assay blocks new refunds while it knows of an open PayPal dispute on the capture; the signed statement is ready as evidence. Fixture-tested |
 | **Your own PayPal** | Partner onboarding with `PayPal-Auth-Assertion`, pending PayPal partner approval |
-
-### MCP server
-
-Install the [MCP package](backend/mcp/README.md) from the same release. Configure your MCP client to run `assay-mcp` with `ASSAY_BASE_URL` and an `integration`-scope `ASSAY_API_KEY`. The server can open batches, register tasks, and read evidence. It exposes no payment approval tools.
-
-### Continuous integration
-
-[GitHub Actions](https://github.com/sankalp2515/Assay/actions) runs backend and frontend checks, builds, and package install checks for pull requests and pushes to `main`. Package publication has its own manually triggered workflow. Deployment remains in the [Google Cloud runbook](backend/docs/DEPLOY.md).
 
 ## Evidence
 
