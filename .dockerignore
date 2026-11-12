@@ -1,0 +1,14 @@
+# Web image build context (backend/infra/gcp/Dockerfile.web). Secrets and local state stay out.
+**/node_modules
+**/dist
+**/.git
+backend/.local
+backend/.env
+backend/evidence
+.env
+product
+frontend/review
+frontend/.openai
+frontend/.taste-skill
+frontend/.impeccable
+**/*.log

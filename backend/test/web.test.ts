@@ -217,3 +217,38 @@ test("demo login is off by default and, when on, signs in as the configured Sand
     await h.close();
   }
 });
+test("CSP allows exactly the inline scripts shipped in index.html, by hash", async () => {
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+  const { tmpdir } = await import("node:os");
+  const { createHash } = await import("node:crypto");
+  const dir = await mkdtemp(join(tmpdir(), "assets-"));
+  const inline = "document.documentElement.dataset.x='1'";
+  await writeFile(join(dir, "index.html"), `<html><head><script>${inline}</script><script type="module" src="/a.js"></script></head></html>`);
+  const h = await harness(),
+    db = await embedded();
+  await db.migrate("commerce");
+  const app = await createGateway({
+    origin: "https://demo.example",
+    tenant: h.tenant,
+    identity: h.identities.operator,
+    db,
+    members: { op: { role: "operator", subject: h.operator } },
+    commerceUrl: "https://commerce.internal",
+    deliveryUrl: "https://delivery.internal",
+    assetsDir: dir,
+    login: { authorization: () => "https://id.example", exchange: async () => "x" },
+  });
+  try {
+    const r = await app.inject({ url: "/" });
+    assert.equal(r.statusCode, 200);
+    const csp = String(r.headers["content-security-policy"]);
+    assert.ok(csp.includes("'sha256-" + createHash("sha256").update(inline).digest("base64") + "'"), csp);
+    assert.ok(!csp.includes("unsafe-inline'") || /style-src[^;]*unsafe-inline/.test(csp));
+    assert.ok(!/script-src[^;]*unsafe-inline/.test(csp));
+  } finally {
+    await app.close();
+    await db.close();
+    await h.close();
+  }
+});

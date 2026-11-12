@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { resolve, sep, extname } from "node:path";
 import { Readable } from "node:stream";
@@ -74,12 +74,24 @@ export async function createGateway(options: GatewayOptions) {
   const cookie = (name: string, value: string, maxAge: number) =>
     `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${o.localOnly ? "" : "; Secure"}`;
   const app = Fastify({ logger: false, bodyLimit: 65536, trustProxy: o.trustProxy === true });
+  // Inline scripts shipped in index.html (e.g. the theme switch) are allowed by exact hash,
+  // so the policy never needs 'unsafe-inline'.
+  const inlineHashes: string[] = [];
+  if (o.assetsDir) {
+    try {
+      const html = await readFile(resolve(o.assetsDir, "index.html"), "utf8");
+      for (const m of html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g))
+        if (m[1]) inlineHashes.push("'sha256-" + createHash("sha256").update(m[1]).digest("base64") + "'");
+    } catch {
+      // No built index.html: nothing inline to allow.
+    }
+  }
   await app.register(helmet, {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
         // PayPal JS SDK buttons (Sandbox and live hosts) load scripts, frames and calls.
-        scriptSrc: ["'self'", "https://www.paypal.com", "https://www.sandbox.paypal.com"],
+        scriptSrc: ["'self'", ...inlineHashes, "https://www.paypal.com", "https://www.sandbox.paypal.com"],
         frameSrc: ["https://www.paypal.com", "https://www.sandbox.paypal.com"],
         childSrc: ["https://www.paypal.com", "https://www.sandbox.paypal.com"],
         styleSrc: ["'self'", "'unsafe-inline'"],
@@ -423,6 +435,10 @@ export async function createGateway(options: GatewayOptions) {
   });
   if (o.assetsDir) {
     const base = await realpath(o.assetsDir);
+    // The bare root is not matched by the wildcard route.
+    app.get("/", async (_req, reply) =>
+      reply.type("text/html; charset=utf-8").send(await readFile(resolve(base, "index.html"))),
+    );
     app.get("/*", async (req, reply) => {
       let path: string;
       try {

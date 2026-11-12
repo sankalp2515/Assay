@@ -189,6 +189,7 @@ export function merchantCollection() {
 export function environment(name: string, baseUrl: string) {
   return {
     name,
+    _postman_variable_scope: "environment",
     values: [
       { key: "base_url", value: baseUrl, enabled: true },
       { key: "invite_code", value: "", type: "secret", enabled: true },

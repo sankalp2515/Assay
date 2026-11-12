@@ -18,7 +18,7 @@ import {
   verifyMoney,
   refundReferencesCapture,
 } from "../adapters/paypal.js";
-import { sameMoney, isCurrency, type Currency } from "../domain/money.js";
+import { sameMoney, isCurrency, formatMoney, type Currency } from "../domain/money.js";
 import type { PayOptions } from "../core/context.js";
 import { disputeRoutes, openDispute } from "./disputes.js";
 import { merchantRoutes, merchantFor, tenantForMerchant } from "./merchants.js";
@@ -625,6 +625,11 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
             op.amount_minor,
             op.request_key,
             o,
+            {
+              invoice_id: op.id,
+              note_to_payer:
+                "Refund of " + formatMoney(op.amount_minor, o.currency) + " against your Assay capture " + String(op.capture_id) + ".",
+            },
           );
         else
           response = await paypal.void(

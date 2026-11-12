@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-11T13:02:14.960Z",
+  "at": "2026-11-12T00:09:39.258Z",
   "topology": "docker compose: 5 service containers, 5 PostgreSQL 18 containers, isolated verifier",
   "transport": "HTTP over the compose network with signed Ed25519 service tokens",
   "paypal_transaction": false,
@@ -24,8 +24,16 @@
       "status": 409,
       "code": "batch_not_running"
     },
+    "non-USD batch accepted with its own currency": {
+      "status": 200,
+      "currency": "EUR"
+    },
+    "public PayPal button configuration served": true,
+    "sign-up refused while closed": 403,
+    "unknown API key rejected": 401,
     "public statement key published": true,
     "unauthenticated access rejected": 401,
     "other tenant cannot read the batch": 404
-  }
+  },
+  "target": "hosted Sandbox on Google Compute Engine (assay-34-59-154-73.sslip.io), over public HTTPS through Caddy"
 }

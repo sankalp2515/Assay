@@ -70,7 +70,7 @@ try {
   await mkdir("docs/postman", { recursive: true });
   await writeFile("docs/postman/assay-merchant.postman_collection.json", JSON.stringify(merchantCollection(), null, 2));
   await writeFile("docs/postman/local.postman_environment.json", JSON.stringify(environment("Assay local", "http://127.0.0.1:4100"), null, 2));
-  await writeFile("docs/postman/hosted-sandbox.postman_environment.json", JSON.stringify(environment("Assay hosted Sandbox", "https://<your-domain>"), null, 2));
+  await writeFile("docs/postman/hosted-sandbox.postman_environment.json", JSON.stringify(environment("Assay hosted Sandbox", process.env.HOSTED_BASE_URL ?? "https://assay-34-59-154-73.sslip.io"), null, 2));
   console.log(
     "Exported five OpenAPI documents, a Postman smoke collection and the merchant collection.",
   );

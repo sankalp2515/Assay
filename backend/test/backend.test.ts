@@ -323,6 +323,8 @@ test("original capture refund is bounded and duplicate unit remedy rejected", as
       "execute-refund",
     );
     assert.equal(h.paypal.refunds, 1);
+    assert.match(String(h.paypal.refundDetails?.note_to_payer), /^Refund of \$5\.00 against your Assay capture CAPTURE_FIXTURE\./);
+    assert.equal(h.paypal.refundDetails?.invoice_id, op.id);
   } finally {
     await h.close();
   }

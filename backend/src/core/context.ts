@@ -29,7 +29,13 @@ export interface PayPal {
   ): Promise<Json>;
   getCapture(id: string, o?: PayOptions): Promise<Json>;
   void(authId: string, key: string, o?: PayOptions): Promise<Json>;
-  refund(captureId: string, amount: number, key: string, o?: PayOptions): Promise<Json>;
+  refund(
+    captureId: string,
+    amount: number,
+    key: string,
+    o?: PayOptions,
+    details?: { invoice_id: string; note_to_payer: string },
+  ): Promise<Json>;
   getRefund(id: string, o?: PayOptions): Promise<Json>;
   getDispute?(id: string, o?: PayOptions): Promise<Json>;
   createPartnerReferral?(trackingId: string, returnUrl: string): Promise<Json>;

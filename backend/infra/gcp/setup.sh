@@ -21,9 +21,13 @@ gcloud services enable compute.googleapis.com storage.googleapis.com aiplatform.
 # Google does not stop spending at a budget, so watch the email.
 if [[ -n "${BILLING_ACCOUNT:-}" ]]; then
   gcloud services enable billingbudgets.googleapis.com
+  # Budgets use the billing account's own currency and the project number.
+  CUR=$(gcloud billing accounts describe "$BILLING_ACCOUNT" --format="value(currencyCode)")
+  PN=$(gcloud projects describe "$PROJECT" --format="value(projectNumber)")
+  AMOUNT="${BUDGET_AMOUNT:-$([ "$CUR" = "INR" ] && echo 5000 || echo 60)}"
   gcloud billing budgets create --billing-account="$BILLING_ACCOUNT" \
-    --display-name="assay-sandbox" --budget-amount="${BUDGET_USD:-60}USD" \
-    --filter-projects="projects/$PROJECT" \
+    --display-name="assay-sandbox" --budget-amount="${AMOUNT}${CUR}" \
+    --filter-projects="projects/$PN" \
     --threshold-rule=percent=0.5 --threshold-rule=percent=0.9 --threshold-rule=percent=1.0 || true
 fi
 
@@ -39,10 +43,7 @@ gcloud projects add-iam-policy-binding "$PROJECT" --member="serviceAccount:$SA" 
 gcloud storage buckets describe "gs://$BUCKET" >/dev/null 2>&1 ||
   gcloud storage buckets create "gs://$BUCKET" --location="$REGION" \
     --uniform-bucket-level-access --public-access-prevention
-cat >/tmp/assay-lifecycle.json <<'JSON'
-{"rule":[{"action":{"type":"Delete"},"condition":{"age":30}}]}
-JSON
-gcloud storage buckets update "gs://$BUCKET" --lifecycle-file=/tmp/assay-lifecycle.json
+gcloud storage buckets update "gs://$BUCKET" --lifecycle-file="$(dirname "$0")/lifecycle.json"
 gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
   --member="serviceAccount:$SA" --role="roles/storage.objectAdmin" >/dev/null
 
@@ -57,14 +58,7 @@ gcloud compute instances describe "$VM" --zone="$ZONE" >/dev/null 2>&1 ||
     --image-family=debian-12 --image-project=debian-cloud --boot-disk-size=30GB \
     --address="$IP" --tags=assay-web --service-account="$SA" \
     --scopes=cloud-platform --shielded-secure-boot \
-    --metadata=enable-oslogin=TRUE,startup-script='#!/bin/bash
-if ! command -v docker >/dev/null; then
-  apt-get update && apt-get install -y ca-certificates curl git
-  install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-  echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list
-  apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-fi'
+    --metadata=enable-oslogin=TRUE --metadata-from-file=startup-script="$(dirname "$0")/startup.sh"
 
 DOMAIN="assay-${IP//./-}.sslip.io"
 cat <<EOF

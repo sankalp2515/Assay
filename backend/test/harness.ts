@@ -122,7 +122,9 @@ export class FixturePayPal implements PayPal {
     this.voids++;
     return { status: "VOIDED" };
   }
-  async refund(_id: string, amount: number) {
+  refundDetails: { invoice_id: string; note_to_payer: string } | undefined;
+  async refund(_id: string, amount: number, _key?: string, _o?: PayOptions, details?: { invoice_id: string; note_to_payer: string }) {
+    this.refundDetails = details;
     this.refunds++;
     this.refundAmount = amount;
     return { id: "REFUND_FIXTURE", status: "COMPLETED" };

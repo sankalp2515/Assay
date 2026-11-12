@@ -1,6 +1,27 @@
 # Deploying the hosted Sandbox
 
-12 November 2026. This is the plan for a public URL that judges and new merchants can open. It runs the same containers that pass the local smoke test, uses your Google Cloud credits for compute and Gemini, and keeps Render for the free public landing page. Nothing here has been deployed yet.
+**Status, 12 November 2026: deployed.**
+
+| | |
+|---|---|
+| App | https://assay-34-59-154-73.sslip.io (Google Cloud project `starry-compiler-514523-h5`, VM `assay-sandbox`, e2-medium, us-central1-a) |
+| Landing page | https://assay-sandbox.onrender.com (Render free static site) |
+| Spend guard | Budget alert at ₹5,000 a month |
+| AI | Gemini free key first, then Groq, then Gemini on Vertex AI (credits) |
+| PayPal | Sandbox webhook registered to `/v1/paypal/webhooks` (id `5T385301XK764952M`) |
+| Demo | Demo sign-in, demo provider and KERNEL playback probes on. Sign-up is invite-only |
+
+Verified over public HTTPS:
+
+- the container smoke test (`evidence/container-smoke.json`)
+- the landing page and the guided journey connected to live services
+
+Not yet verified: a full PayPal Sandbox run through the hosted UI, a received PayPal webhook, and a KERNEL probe on a hosted clip.
+
+Redeploy after a change: `bash infra/gcp/redeploy.sh` (or `SERVICES=web …`).
+
+
+12 November 2026. This is the plan for a public URL that judges and new merchants can open. It runs the same containers that pass the local smoke test, uses your Google Cloud credits for compute and Gemini, and keeps Render for the free public landing page. 
 
 ## Short answers
 

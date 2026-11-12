@@ -215,12 +215,24 @@ export class PayPalSandbox implements PayPal {
       o.merchantId,
     );
   }
-  refund(captureId: string, amount: number, key: string, o: PayOptions = {}) {
+  refund(
+    captureId: string,
+    amount: number,
+    key: string,
+    o: PayOptions = {},
+    details?: { invoice_id: string; note_to_payer: string },
+  ) {
     const code: Currency = o.currency ?? "USD";
     return this.request(
       "/v2/payments/captures/" + encodeURIComponent(captureId) + "/refund",
       "POST",
-      { amount: { currency_code: code, value: paypalValue(amount, code) } },
+      {
+        amount: { currency_code: code, value: paypalValue(amount, code) },
+        // Shown in the buyer's PayPal history, like the capture's per-clip note.
+        ...(details
+          ? { invoice_id: details.invoice_id.slice(0, 127), note_to_payer: details.note_to_payer.slice(0, 255) }
+          : {}),
+      },
       key,
       o.merchantId,
     );
