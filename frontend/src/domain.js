@@ -1,7 +1,21 @@
-export const money = (minor, currency = "USD") =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency }).format(
-    minor / 100,
-  );
+// Amounts arrive in the currency's smallest unit: cents for USD, whole yen for JPY.
+const formatters = new Map();
+function formatter(currency) {
+  if (!formatters.has(currency)) {
+    let f;
+    try {
+      f = new Intl.NumberFormat("en-US", { style: "currency", currency });
+    } catch {
+      f = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+    }
+    formatters.set(currency, [f, 10 ** f.resolvedOptions().maximumFractionDigits]);
+  }
+  return formatters.get(currency);
+}
+export const money = (minor, currency = "USD") => {
+  const [f, scale] = formatter(currency || "USD");
+  return f.format(minor / scale);
+};
 export function payable(batch, artifacts) {
   const published = new Set(
     artifacts.filter((a) => a.published).map((a) => a.unit_id),
@@ -145,3 +159,25 @@ export const demoArtifacts = demoBatch.units.slice(0, 8).map((u, i) => ({
   height: 1080,
   duration: 6,
 }));
+
+const CLIENT_ID = /^[A-Za-z0-9_-]{20,128}$/;
+const CURRENCY = /^[A-Z]{3}$/;
+
+/** Returns the SDK URL, or null when the config is not a usable Sandbox config. */
+export function paypalSdkUrl(config, currency = "USD") {
+  if (!config || config.environment !== "sandbox") return null;
+  if (!CLIENT_ID.test(String(config.client_id || ""))) return null;
+  if (config.intent && config.intent !== "authorize") return null;
+  currency = String(currency || "USD");
+  if (!CURRENCY.test(currency)) return null;
+  if (Array.isArray(config.currencies) && !config.currencies.includes(currency)) return null;
+  const q = new URLSearchParams({
+    "client-id": config.client_id,
+    intent: "authorize",
+    currency,
+    components: "buttons",
+    // This approval is a hold, not a purchase: PayPal's last button reads "Continue".
+    commit: "false",
+  });
+  return `https://www.paypal.com/sdk/js?${q}`;
+}

@@ -141,3 +141,14 @@ test("unknowns and timeline keep sources explicit", () => {
   assert.equal(timeline[2].tone, "ai");
   assert.match(timeline[0].detail, /Not a charge/);
 });
+
+test("restored clips come from the batch record, not from a local receipt", async () => {
+  const { recoveryReceipts } = await import("../src/case/model.js");
+  const batch = { recovered: [{ unit_id: "u8", artifact_id: "a8", recovered_at: "2026-11-11T10:00:00Z" }] };
+  assert.deepEqual(recoveryReceipts(batch), [{ unit_id: "u8", artifact_id: "a8", observed_at: "2026-11-11T10:00:00Z" }]);
+  const [one] = recoveryReceipts(batch, [{ unit_id: "u8", receipt_hash: "h", outcome: "VERIFIED", observed_at: "local" }]);
+  assert.equal(one.receipt_hash, "h");
+  assert.equal(one.observed_at, "2026-11-11T10:00:00Z");
+  assert.deepEqual(recoveryReceipts({ recovered: [] }, [{ unit_id: "u9", receipt_hash: "x" }]), []);
+  assert.deepEqual(recoveryReceipts({}), []);
+});

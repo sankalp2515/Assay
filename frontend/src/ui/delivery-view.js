@@ -67,3 +67,67 @@ export function coarseStations(state) {
     value: "",
   }));
 }
+
+/**
+ * The job in order, for the Start here page. States come from the delivery record only:
+ * a step is "done" when the record shows it, the first step that is not is "next".
+ */
+export function journeySteps(batch, { demoProvider = false, hasTasks = false } = {}) {
+  const reached = REACHED[batch.state] ?? 1;
+  const id = batch.id;
+  const recovered = (batch.recovered_unit_ids || []).length;
+  const closed = batch.state === "CLOSED";
+  const steps = [
+    {
+      key: "agree", who: "buyer", to: `/buyer/${id}/agreement`, action: "Open the agreement",
+      title: "Review the agreement",
+      detail: "The buyer sees the clips, the price for each and the most that can be held.",
+      done: !!batch.consented_at || reached >= 2,
+    },
+    {
+      key: "authorize", who: "buyer", to: `/buyer/${id}/agreement`, action: "Authorize with PayPal",
+      title: "Authorize with PayPal",
+      detail: "PayPal places a hold up to the ceiling. A hold is not a charge.",
+      done: reached >= 2,
+    },
+    // Hosted Sandbox demo only: a stand-in for the merchant's video provider.
+    ...(demoProvider
+      ? [{
+          key: "provider", who: "merchant", to: `/batches/${id}`, action: "Run the demo provider",
+          title: "Run the demo provider",
+          detail: "A public test clip stands in for generated video. Seven clips are delivered, one is archived but lost, two never render.",
+          done: hasTasks || reached >= 4,
+        }]
+      : []),
+    {
+      key: "investigate", who: "merchant", to: `/batches/${id}`, action: "Open the investigation",
+      title: "Investigate what was delivered",
+      detail: "Assay compares provider, archive and buyer-route records. AI reads them and cites what it used.",
+      done: reached >= 4,
+    },
+    {
+      key: "restore", who: "merchant", to: `/batches/${id}`, action: "Restore the lost clip",
+      title: recovered ? `Restored ${recovered === 1 ? "one lost clip" : recovered + " lost clips"}` : reached >= 5 ? "Nothing needed restoring" : "Restore any clip that was rendered but never delivered",
+      detail: "The archived original is re-linked and checked on the buyer's own route. No new render.",
+      done: recovered > 0 || reached >= 5,
+    },
+    {
+      key: "settle", who: "merchant", to: `/batches/${id}/settlement`, action: "Review the settlement",
+      title: "Approve one exact capture",
+      detail: "Only clips the buyer can open are charged. The rest of the hold is released, not refunded.",
+      done: closed,
+    },
+    {
+      key: "receipt", who: "buyer", to: `/buyer/${id}`, action: "See the buyer's receipt",
+      title: "Open the clips and the signed statement",
+      detail: "The buyer sees every clip, what was charged and what was never taken.",
+      done: false,
+    },
+  ];
+  let found = false;
+  return steps.map(({ done, ...step }) => {
+    const state = done && !found ? "done" : found ? "later" : "next";
+    if (state === "next") found = true;
+    return { ...step, state };
+  });
+}

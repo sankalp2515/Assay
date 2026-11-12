@@ -123,3 +123,26 @@ test("empty valid preview is a zero-amount void", () => {
     "VOID",
   );
 });
+
+test("the PayPal button loads only for a valid Sandbox public client id", async () => {
+  const { paypalSdkUrl } = await import("../src/domain.js");
+  const id = "A".repeat(40);
+  const config = { client_id: id, environment: "sandbox", intent: "authorize", currencies: ["USD", "JPY"] };
+  assert.match(paypalSdkUrl(config, "USD"), /^https:\/\/www\.paypal\.com\/sdk\/js\?client-id=A+&intent=authorize&currency=USD&components=buttons&commit=false$/);
+  assert.match(paypalSdkUrl(config, "JPY"), /currency=JPY/);
+  assert.equal(paypalSdkUrl(config, "EUR"), null);
+  assert.equal(paypalSdkUrl({ ...config, environment: "live" }, "USD"), null);
+  assert.equal(paypalSdkUrl({ ...config, intent: "capture" }, "USD"), null);
+  assert.equal(paypalSdkUrl({ ...config, client_id: null }, "USD"), null);
+  assert.equal(paypalSdkUrl({ ...config, client_id: "x&merchant-id=evil" }, "USD"), null);
+  assert.equal(paypalSdkUrl(null), null);
+});
+
+test("money uses the currency's own smallest unit", async () => {
+  const { money } = await import("../src/domain.js");
+  assert.equal(money(4000, "USD"), "$40.00");
+  assert.equal(money(4000), "$40.00");
+  assert.equal(money(4000, "JPY"), "¥4,000");
+  assert.equal(money(4000, "EUR"), "€40.00");
+  assert.equal(money(500, "GBP"), "£5.00");
+});

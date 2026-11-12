@@ -181,6 +181,7 @@ export function Landing({ openDemo, connect, connectionError, mode }) {
                   <button className="btn btn-proof btn-xl" onClick={openDemo}>Watch a recovery<ArrowRightIcon size={16} aria-hidden="true" /></button>
                   <a className="btn btn-outline btn-xl" href="#/" onClick={go("evidence")}>See the evidence</a>
                 </div>
+                <a className="text-link" href="#/start">Try every step yourself</a>
                 {import.meta.env.DEV && mode !== "backend" && <button className="text-link" onClick={connect}>Use local services instead</button>}
                 {connectionError && <p className="inline-banner" data-tone="failed" role="alert">Local services are not reachable. Start them with <code>npm run demo:ui</code>, or use the walkthrough.</p>}
               </div>
@@ -421,6 +422,7 @@ export function Landing({ openDemo, connect, connectionError, mode }) {
           <p>Investigates whether paid AI work was delivered, recovers what exists, and proves the charge is right.</p>
           <nav aria-label="Footer">
             <button onClick={openDemo}>Walkthrough</button>
+            <a href="#/start">Start here</a>
             <a href="#/signin">Sign in</a>
             <a href="#/privacy">Privacy and retention</a>
           </nav>

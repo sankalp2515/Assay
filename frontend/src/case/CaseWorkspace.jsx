@@ -1,6 +1,7 @@
 // Merchant case: investigation, AI analysis, settlement and resolution record for one delivery.
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
+  ClockIcon,
   ArrowRightIcon,
   ArrowClockwiseIcon,
   CheckIcon,
@@ -23,6 +24,9 @@ import { buildStations, buildTimeline, buildUnits, buildUnknowns, clipName, next
 import { useArtifactMedia, useCase } from "./useCase.js";
 import { Thumb, stillFor } from "../ui/stills.jsx";
 import "./case.css";
+
+// Bryntum is large; it loads only when the recovery window is opened.
+const Timeline = lazy(() => import("./Timeline.jsx"));
 
 const pad = (n) => String(n).padStart(2, "0");
 const SOURCE_LABEL = { commerce: "contract", provider: "provider.tasks", delivery: "delivery.archive", payments: "paypal" };
@@ -99,6 +103,7 @@ function CaseHeader({ batch, ctx, view, envLabel, children }) {
   const titles = {
     analysis: [<>Why did finished work <em>look failed?</em></>, "What the systems recorded is kept apart from what the AI thinks happened. Nothing in the second column is evidence."],
     settlement: null,
+    timeline: [<>What can still be saved, <em>and until when.</em></>, "Each clip's provider copy, Assay's archived copy and the PayPal hold on one clock. Solid bars are records. Dashed bars are estimates from published terms."],
     record: [<>What happened, <em>and how we know.</em></>, "A plain-language record of this delivery. Each claim cites the system that observed it. Anything not proven stays marked as open."],
   };
   const fmt = (n) => money(n, batch.currency);
@@ -115,7 +120,7 @@ function CaseHeader({ batch, ctx, view, envLabel, children }) {
     <header className="page-head enter">
       <div>
         <p className="eyebrow">
-          <span>{{ "": "Investigation", analysis: "AI analysis", settlement: "Settlement", record: "Resolution record" }[view]}</span>
+          <span>{{ "": "Investigation", analysis: "AI analysis", settlement: "Settlement", timeline: "Recovery window", record: "Resolution record" }[view]}</span>
           <span>/</span>
           <span>{titleOf(batch)}</span>
           <span>/</span>
@@ -277,7 +282,7 @@ function ArtifactCard({ unit, artifact, media, batch }) {
         <div><dt>Format</dt><dd>{artifact ? `${artifact.width || "—"}×${artifact.height || "—"} · ${artifact.duration ? `${Number(artifact.duration).toFixed(1)} s` : "—"} · ${formatBytes(artifact.bytes ?? media.bytes)}` : "—"}</dd></div>
         <div><dt>Task</dt><dd>{unit.attempt?.provider_task_id ? <Reference value={unit.attempt.provider_task_id} label="provider task" /> : "none on record"}</dd></div>
         {artifact?.sha256 && <div><dt>SHA-256</dt><dd><Reference value={artifact.sha256} label="file digest" /></dd></div>}
-        {unit.restored && <div><dt>Receipt</dt><dd><Reference value={unit.restored.receipt_hash} label="buyer-route receipt" /></dd></div>}
+        {unit.restored?.receipt_hash && <div><dt>Receipt</dt><dd><Reference value={unit.restored.receipt_hash} label="buyer-route receipt" /></dd></div>}
       </dl>
     </section>
   );
@@ -704,7 +709,7 @@ function Record({ c, ctx, data }) {
   const sections = [
     ["What happened", `The buyer agreed to ${units.length} clips at ${fmt(units[0]?.price_minor || 0)} and authorized up to ${fmt(batch.ceiling_minor)} through PayPal. The provider completed ${units.filter((u) => u.attempt?.state === "SUCCEEDED").length} tasks; ${units.filter((u) => u.artifact?.state === "STORED").length} originals were archived.`, [batch.contract_hash && `contract · ${batch.contract_hash.slice(0, 12)}`, auth?.provider_id && `paypal · ${auth.provider_id}`]],
     ["What the investigation established", a?.assessment?.explanation ? nameClips(a.assessment.explanation, units) : "No investigation was run on this delivery.", (a?.assessment?.citations || []).slice(0, 3).map((x) => `cited · “${x.quote}”`), a ? "ai" : null],
-    ["What was recovered", restored.length ? `The original for clip ${restored.map((u) => pad(u.index + 1)).join(", ")} was re-linked to the order. No regeneration was needed and no new model cost was incurred.` : "Nothing needed recovering in this session.", restored.map((u) => `receipt · ${String(u.restored.receipt_hash).slice(0, 14)}`)],
+    ["What was recovered", restored.length ? `The original for clip ${restored.map((u) => pad(u.index + 1)).join(", ")} was re-linked to the order. No regeneration was needed and no new model cost was incurred.` : "Nothing needed recovering in this session.", restored.map((u) => (u.restored.receipt_hash ? `receipt · ${String(u.restored.receipt_hash).slice(0, 14)}` : `artifact · ${String(u.restored.artifact_id).slice(0, 14)}`))],
     ["What the merchant approved", settled ? (finance.operation.kind === "VOID" ? "Release of the authorization. Nothing charged." : `One final capture of ${fmt(totals.captured)} against the existing authorization, approved after delivery was verified.`) : finance.state !== "DRAFT" ? "A capture was approved and sent. It is not confirmed yet." : "Nothing yet. No financial action has been approved.", finance.operation?.id ? [`approval · ${String(finance.operation.id).slice(0, 14)}`] : []],
     ["What PayPal confirmed", settled ? `${finance.operation.kind === "VOID" ? "Authorization released" : `Capture of ${fmt(totals.captured)} completed`}. ${fmt(batch.ceiling_minor - totals.captured)} was never taken. No refund was issued; none was owed.` : "Nothing yet. Pending is not paid.", finance.operation?.provider_id ? [`paypal · ${finance.operation.provider_id}`] : []],
     ["Did the customer receive it?", ready.length ? `${ready.length} of ${units.length} clips are published on the buyer's own route${data.statement?.statement ? ", each with a retrieval receipt and file digest in the delivery statement" : ""}.` : "No. Nothing is published on the buyer route.", data.statement?.signed ? ["statement · signed"] : []],
@@ -795,6 +800,7 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
     <main id="main" className="case-page">
       <CaseHeader batch={batch} ctx={ctx} view={view} envLabel={environment}>
         <StateChip ctx={ctx} />
+        {view === "" && <a className="btn btn-outline btn-sm" href={`#/batches/${batch.id}/timeline`}><ClockIcon size={14} aria-hidden="true" />Recovery window</a>}
         {view === "" && <a className="btn btn-outline btn-sm" href={`#/batches/${batch.id}/analysis`}><SparkleIcon size={14} aria-hidden="true" />AI analysis</a>}
         <button className="icon-button bordered" aria-label="Refresh records" title="Refresh records" disabled={!!c.busy} onClick={c.refresh}><ArrowClockwiseIcon size={16} /></button>
       </CaseHeader>
@@ -802,7 +808,11 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
       {c.error && !restoreTarget && view !== "settlement" && (
         <p className="inline-banner" data-tone="failed" role="alert"><span>{c.error}</span> <button className="text-link" onClick={() => c.setError("")}>Dismiss</button></p>
       )}
-      {view === "analysis" ? <Analysis {...props} /> : view === "settlement" ? <Settlement {...props} /> : view === "record" ? <Record {...props} /> : <Investigation {...props} />}
+      {view === "timeline" ? (
+        <Suspense fallback={<section className="sheet tl-state" aria-busy="true"><div className="skeleton skeleton-block" /></section>}>
+          <Timeline batchId={batch.id} envKind={envKind} />
+        </Suspense>
+      ) : view === "analysis" ? <Analysis {...props} /> : view === "settlement" ? <Settlement {...props} /> : view === "record" ? <Record {...props} /> : <Investigation {...props} />}
 
       <div className="sr-only" role="status" aria-live="polite">{c.busy ? `${c.busy}…` : c.notice}</div>
       <Notice message={c.notice} onClose={() => c.setNotice("")} />

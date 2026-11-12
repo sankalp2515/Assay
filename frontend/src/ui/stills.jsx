@@ -32,7 +32,7 @@ export function Thumb({ index, exists, dim = false }) {
   const still = exists ? stillFor(index) : null;
   return (
     <span className="thumb" data-exists={exists || undefined} data-dim={dim || undefined} aria-hidden="true">
-      {still && <img src={still.src} alt="" loading="lazy" decoding="async" />}
+      {still && <img src={still.src} alt="" decoding="async" />}
     </span>
   );
 }

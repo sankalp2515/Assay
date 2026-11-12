@@ -189,3 +189,23 @@ export async function contentBlob(artifact, deliveryToken, signal) {
     );
   return res.blob();
 }
+
+/** Creates a merchant account. Public route: no session, and never retried here. */
+export async function signup(body) {
+  if (demoMode)
+    throw new ApiError("The walkthrough has no accounts. Connect services to sign up.", 409, "demo");
+  const res = await fetch("/api/commerce/v1/signup", {
+    method: "POST",
+    cache: "no-store",
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(30000),
+    headers: {
+      "Content-Type": "application/json",
+      ...(gateway ? { "X-CSRF-Token": gateway.csrf } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(data.message || "", res.status, data.code);
+  return data;
+}

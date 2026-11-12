@@ -375,3 +375,14 @@ input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea {
   .buyer-top .eyebrow, .buyer-top .tag-env { display: none; }
   .buyer-top .merchant { margin-right: auto; }
 }
+
+/* Official PayPal button (rendered by PayPal's SDK) on the buyer agreement. */
+.paypal-sdk { margin: 16px 0 8px; max-width: 420px; }
+.paypal-sdk-host { min-height: 48px; position: relative; z-index: 0; }
+.paypal-sdk[data-state="loading"] .paypal-sdk-host { border-radius: 6px; background: var(--rule); }
+.paypal-sdk[data-disabled] .paypal-sdk-host { opacity: 0.55; }
+.paypal-sdk-note { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.paypal-fallback { margin: 14px 0 6px; }
+.paypal-fallback summary { cursor: pointer; font-size: 13px; color: var(--muted); min-height: 32px; display: flex; align-items: center; }
+.paypal-fallback summary:hover { color: var(--ink); }
+.paypal-fallback[open] summary { margin-bottom: 8px; }

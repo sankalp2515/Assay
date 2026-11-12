@@ -10,7 +10,7 @@
 .cols { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 48px; }
 .cols.wide-gap { gap: 56px; }
 .c4 { grid-column: span 4; } .c5 { grid-column: span 5; } .c6 { grid-column: span 6; } .c7 { grid-column: span 7; } .c8 { grid-column: span 8; }
-.start7 { grid-column-start: 7; }
+.c6.start7 { grid-column: 7 / span 6; }
 .lp-section { padding-block: 128px; border-bottom: 1px solid var(--rule); }
 .lp-section.tinted { background: color-mix(in oklab, var(--paper-deep) 50%, transparent); }
 
@@ -230,7 +230,7 @@
 }
 @media (max-width: 1100px) {
   .cols, .hero-top { grid-template-columns: minmax(0, 1fr); }
-  .c4, .c5, .c6, .c7, .c8, .start7, .hero-copy, .hero-side { grid-column: auto; }
+  .c4, .c5, .c6, .c7, .c8, .c6.start7, .hero-copy, .hero-side { grid-column: auto; }
   .hero-side { max-width: 34rem; padding-bottom: 0; }
   .photo-copy { grid-column: 5 / span 8; }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }

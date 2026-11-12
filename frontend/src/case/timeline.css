@@ -1,0 +1,81 @@
+/* Recovery window (Bryntum Scheduler), dressed in Assay tokens. Loaded after the Bryntum theme. */
+.tl-summary { margin: 0 0 16px; padding: 14px 18px; border: 1px solid var(--rule); border-left: 3px solid var(--verified); border-radius: var(--radius-sm); background: var(--card); }
+.tl-summary[data-risk="yes"] { border-left-color: var(--broken); }
+.tl-summary p { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--ink-soft); }
+.tl-summary strong { color: var(--ink); font-weight: 600; }
+
+.tl-state { padding: 28px 24px; display: grid; gap: 8px; justify-items: start; }
+.tl-state h2 { margin: 0; font-size: 17px; }
+.tl-state p { margin: 0; font-size: 14px; color: var(--ink-soft); }
+
+.tl-sheet { overflow: hidden; }
+.tl-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 20px; }
+.tl-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--ink-soft); }
+.tl-legend li { display: inline-flex; align-items: center; gap: 7px; }
+.tl-key { display: inline-block; width: 26px; height: 10px; border-radius: 3px; }
+.tl-key-observed { background: var(--ink); }
+.tl-key-estimate { border: 1.5px dashed var(--ink); background: transparent; }
+.tl-key-point { width: 10px; height: 10px; border-radius: 2px; background: var(--ink); transform: rotate(45deg); }
+.tl-modes { display: flex; gap: 6px; }
+.tl-modes .btn { border: 1px solid var(--input); background: var(--card); color: var(--ink-soft); }
+.tl-modes .btn[data-on="true"] { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+
+.tl-foot { margin: 0; padding: 12px 20px 16px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--rule); }
+.tl-list { border-top: 1px solid var(--rule); }
+.tl-list summary { cursor: pointer; padding: 12px 20px; font-size: 13px; color: var(--ink-soft); min-height: 24px; }
+.tl-list table { width: 100%; }
+.tl-list small { color: var(--muted); }
+.tl-basis { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--ink); color: var(--ink); }
+.tl-basis[data-basis="ESTIMATE"] { border-style: dashed; color: var(--muted); border-color: var(--muted); }
+
+/* Bryntum chrome */
+.tl-chart .b-scheduler,
+.tl-chart .b-grid-base {
+  --b-primary: var(--proof);
+  --b-neutral-100: var(--card);
+  --b-widget-font-family: var(--font-sans);
+  --b-grid-background: var(--card);
+  --b-grid-cell-border-color: var(--rule);
+  --b-grid-header-background: var(--paper-deep);
+  --b-grid-header-color: var(--muted);
+  --b-grid-header-border-color: var(--rule);
+  --b-grid-cell-color: var(--ink);
+  --b-time-axis-header-color: var(--muted);
+  --b-sch-current-time-color: var(--broken);
+  font-family: var(--font-sans);
+  background: var(--card);
+  color: var(--ink);
+}
+.tl-chart .b-grid-header-container, .tl-chart .b-grid-header, .tl-chart .b-sch-header-timeaxis-cell { background: var(--paper-deep); color: var(--muted); font-size: 11.5px; border-color: var(--rule); }
+.tl-chart .b-grid-row, .tl-chart .b-grid-cell, .tl-chart .b-grid-subgrid, .tl-chart .b-grid-body-container { background: var(--card); color: var(--ink); border-color: var(--rule); }
+.tl-chart .b-grid-splitter { background: var(--rule); }
+.tl-row { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; }
+.tl-row[data-kind="payment"], .tl-row[data-kind="dispute"] { font-weight: 600; }
+.tl-risk { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 5px; border: 1px solid var(--broken); border-radius: 4px; color: var(--broken-ink); }
+
+/* Bars. A record is solid ink; an estimate is a dashed outline with no fill. */
+.tl-chart .b-sch-event-wrap .b-sch-event.tl-ev {
+  background: var(--bar, var(--ink));
+  border: 1.5px solid var(--bar, var(--ink));
+  border-radius: 4px;
+  color: var(--paper);
+  font-size: 11.5px;
+  font-weight: 500;
+  box-shadow: none;
+  opacity: 1;
+}
+.tl-chart .b-sch-event.tl-ev .b-sch-event-content { color: inherit; margin: 0 6px; }
+.tl-chart .b-sch-event.tl-retrievable, .tl-chart .b-sch-event.tl-recovery { --bar: var(--verified); }
+.tl-chart .b-sch-event.tl-authorization-validity, .tl-chart .b-sch-event.tl-authorization-honor, .tl-chart .b-sch-event.tl-capture { --bar: var(--proof); }
+.tl-chart .b-sch-event.tl-batch-window, .tl-chart .b-sch-event.tl-void { --bar: var(--muted); }
+.tl-chart .b-sch-event.tl-dispute, .tl-chart .b-sch-event.tl-refund, .tl-chart .b-sch-event.tl-at-risk { --bar: var(--broken); }
+.tl-chart .b-sch-event-wrap .b-sch-event.tl-estimate { background: transparent; border-style: dashed; color: var(--bar, var(--ink)); }
+.tl-chart .b-sch-event-wrap .b-sch-event.tl-estimate.tl-at-risk { color: var(--broken-ink); }
+.tl-chart .b-sch-event.tl-ended { opacity: 0.55; }
+.tl-chart .b-sch-event.tl-open { border-right-style: dotted; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.tl-chart .b-milestone-wrap .b-sch-event.tl-point { border-radius: 2px; transform: rotate(45deg) scale(0.72); }
+
+.tl-tip { display: grid; gap: 4px; max-width: 280px; font-size: 12.5px; }
+.tl-tip p { margin: 0; }
+.tl-tip-basis { justify-self: start; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 1px 5px; border: 1px solid currentColor; border-radius: 4px; }
+.tl-tip-basis[data-basis="ESTIMATE"] { border-style: dashed; }

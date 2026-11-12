@@ -107,6 +107,82 @@ function fresh() {
   };
 }
 let state = fresh();
+const batchView = () => {
+  const recovered = state.recoveries.map((r) => ({ unit_id: r.unit_id, artifact_id: r.artifact_id, recovered_at: r.observed_at }));
+  return { ...structuredClone(state.batch), recovered, recovered_unit_ids: recovered.map((r) => r.unit_id) };
+};
+
+// Illustrative mirrors of the service's read-only views (timeline and operations rows),
+// derived from the walkthrough's own example state. The provider is shown as "runway" so the
+// published 24-hour retention estimate has something to stand on; no provider is involved.
+const HOUR = 3600_000;
+const plusMs = (v, ms) => new Date(Date.parse(v) + ms).toISOString();
+function timelineView() {
+  const b = state.batch;
+  const events = [];
+  const add = (e) => events.push({ id: `${e.resourceId}:${e.kind}:${events.length}`, ...e });
+  const authorized = state.authorization?.confirmed_at;
+  if (authorized) {
+    add({ resourceId: "paypal", name: "Hold honored by PayPal", kind: "authorization_honor", startDate: authorized, endDate: plusMs(authorized, 72 * HOUR), basis: "ESTIMATE", note: "PayPal honors authorized funds for 3 days" });
+    add({ resourceId: "paypal", name: "Hold can be captured until", kind: "authorization_validity", startDate: authorized, endDate: plusMs(authorized, 29 * 24 * HOUR), basis: "OBSERVED" });
+  }
+  add({ resourceId: "paypal", name: "Batch deadline", kind: "batch_window", startDate: b.created_at, endDate: b.deadline, basis: "OBSERVED" });
+  for (const op of state.operations)
+    if (op.state === "CONFIRMED")
+      add({ resourceId: "paypal", name: op.kind === "CAPTURE" ? "Captured" : op.kind === "VOID" ? "Hold released" : "Refunded", kind: op.kind.toLowerCase(), startDate: op.confirmed_at || iso(), endDate: null, basis: "OBSERVED" });
+  for (const at of state.attempts) {
+    add({ resourceId: at.unit_id, name: "Task registered (runway)", kind: "task", startDate: at.created_at, endDate: null, basis: "OBSERVED" });
+    add({ resourceId: at.unit_id, name: "Provider keeps output", kind: "provider_retention", startDate: at.created_at, endDate: plusMs(at.created_at, 24 * HOUR), basis: "ESTIMATE", note: "Lower bound of the provider's published retention, from registration" });
+  }
+  for (const art of state.artifacts) {
+    const made = state.attempts.find((x) => x.unit_id === art.unit_id)?.created_at || b.created_at;
+    const stored = plusMs(made, 2 * 60000);
+    const rec = state.recoveries.find((r) => r.unit_id === art.unit_id);
+    add({ resourceId: art.unit_id, name: "Original archived by Assay", kind: "archive", startDate: stored, endDate: art.retention_until, basis: "OBSERVED" });
+    if (art.published)
+      add({ resourceId: art.unit_id, name: "Buyer can open", kind: "retrievable", startDate: rec?.observed_at || plusMs(stored, 60000), endDate: art.retention_until, basis: "OBSERVED" });
+    if (rec)
+      add({ resourceId: art.unit_id, name: "Recovered instead of re-rendered", kind: "recovery", startDate: rec.observed_at, endDate: null, basis: "OBSERVED" });
+  }
+  return {
+    batch_id: b.id,
+    currency: b.currency,
+    resources: [{ id: "paypal", name: "PayPal", kind: "payment" }, ...b.units.map((u, i) => ({ id: u.id, name: `Clip ${i + 1}`, kind: "clip" }))],
+    events,
+    at_risk_unit_ids: [],
+    generated_at: iso(),
+  };
+}
+function dashboardView(level) {
+  const b = state.batch;
+  const capture = state.operations.find((o) => o.kind === "CAPTURE" && o.state === "CONFIRMED");
+  const rows =
+    level === "clip"
+      ? b.units.map((u, i) => {
+          const art = state.artifacts.find((x) => x.unit_id === u.id);
+          const att = state.attempts.find((x) => x.unit_id === u.id);
+          return {
+            batch_id: b.id, batch_title: b.title, clip: i + 1, unit_id: u.id, currency: b.currency, price_minor: u.price_minor,
+            provider_source: att ? "runway" : null, task_state: att?.state ?? "NOT_REGISTERED",
+            archived: art?.state === "STORED", delivered: art?.published === true,
+            recovered: state.recoveries.some((r) => r.unit_id === u.id), external_playback: null,
+          };
+        })
+      : [{
+          batch_id: b.id, title: b.title, created_at: b.created_at, state: b.state, currency: b.currency, clips: b.units.length,
+          archived: state.artifacts.length,
+          delivered: state.artifacts.filter((x) => x.published).length,
+          archived_not_delivered: state.artifacts.filter((x) => !x.published).length,
+          recovered: state.recoveries.length,
+          never_rendered: b.units.length - state.attempts.length,
+          authorized_minor: b.ceiling_minor,
+          charged_minor: capture ? capture.amount_minor : 0,
+          not_taken_minor: capture ? b.ceiling_minor - capture.amount_minor : null,
+          refunded_minor: 0, open_disputes: 0, next_dispute_deadline: null, playback_played: 0, playback_probed: 0,
+        }];
+  return { level, rows, note: "Illustrative walkthrough rows. Money is in minor units of each row's currency.", generated_at: iso() };
+}
+
 export function resetDemo() {
   state = fresh();
 }
@@ -261,7 +337,7 @@ export async function simulate(path, { body } = {}) {
   const write = body !== undefined;
   await wait(write ? 320 : 140);
   if (pathname === "/v1/batches" && !write)
-    return { items: [structuredClone(state.batch)], next: null };
+    return { items: [batchView()], next: null };
   if (pathname === "/v1/readiness")
     return { environment: "demo", currency: "USD", services: [], observed_at: iso() };
   if (pathname === "/v1/operations/impact") {
@@ -281,6 +357,8 @@ export async function simulate(path, { body } = {}) {
       currency: "USD",
     };
   }
+  if (pathname === "/v1/operations/dashboard")
+    return dashboardView(path.includes("level=clip") ? "clip" : "batch");
   if (parts[1] === "operations" && parts[3] === "reconcile") {
     const op = state.operations.find((o) => o.id === parts[2]);
     if (!op) throw notFound();
@@ -292,7 +370,9 @@ export async function simulate(path, { body } = {}) {
   const digest = await digestOfMedia();
   switch (action) {
     case "":
-      return structuredClone(state.batch);
+      return batchView();
+    case "timeline":
+      return timelineView();
     case "outcomes":
       return {
         batch_id: DEMO_BATCH_ID,

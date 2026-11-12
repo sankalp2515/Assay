@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { CaseWorkspace } from "./case/CaseWorkspace.jsx";
 import { BuyerDelivery } from "./buyer/BuyerDelivery.jsx";
+import { PayPalButton, paypalSdkUrl } from "./buyer/PayPalButton.jsx";
+import { Signup, Start } from "./start/Start.jsx";
 import { Landing } from "./landing/Landing.jsx";
+
+// AG Studio is large; it loads only when the dashboard is opened.
+const Dashboard = lazy(() => import("./ops/Dashboard.jsx"));
 import { DEMO_BATCH_ID } from "./demo/simulator.js";
 import {
   currentSession,
@@ -359,9 +364,9 @@ function BatchQueue({ demo, connect, payments = false }) {
                               <a href={`#${target}`}>{b.title || `Video batch ${b.id.slice(0, 8)}`}</a>
                               <span className="num">{b.id.slice(0, 8)} · <time dateTime={b.created_at}>{new Date(b.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</time></span>
                             </th>
-                            <td>{b.units.length} {b.units.length === 1 ? "clip" : "clips"} at {money(b.units[0]?.price_minor || 0)}</td>
+                            <td>{b.units.length} {b.units.length === 1 ? "clip" : "clips"} at {money(b.units[0]?.price_minor || 0, b.currency)}</td>
                             <td><ProofLine stations={coarseStations(b.state)} size="mini" /></td>
-                            <td className="num">{money(b.ceiling_minor)}<span>{stage.group === "closed" ? "ceiling" : "ceiling, not a charge"}</span></td>
+                            <td className="num">{money(b.ceiling_minor, b.currency)}<span>{stage.group === "closed" ? "ceiling" : "ceiling, not a charge"}</span></td>
                             <td><Chip tone={STAGE_TONE[stage.group] || "pending"}>{stage.label}</Chip></td>
                             <td><a className="text-link" href={`#${target}`}>{payments ? "Payments" : stage.action}</a></td>
                           </tr>
@@ -681,39 +686,63 @@ function Agreement({ id, demo, session }) {
         : Promise.all([
             request(rootFor(id), { role: "buyer" }),
             request(rootFor(id) + "/financials", { role: "buyer" }),
-          ]).then(([batch, financial]) => ({ batch, financial })),
+            // Public client id for the PayPal button. Absent on older services: the
+            // approval link below still works without it.
+            request("/v1/paypal/config", { role: "buyer" }).catch(() => null),
+          ]).then(([batch, financial, paypal]) => ({ batch, financial, paypal })),
     [id, demo],
   );
   const [error, setError] = useState(null),
     [busy, setBusy] = useState(false),
     [url, setUrl] = useState(null),
-    [accepted, setAccepted] = useState(false);
+    [accepted, setAccepted] = useState(false),
+    [sdkFailed, setSdkFailed] = useState(false);
+  // Consent, then the one server-created order for this batch. The intent keys make a
+  // repeat call return the same order rather than create another.
+  async function prepareOrder() {
+    await request(rootFor(id) + "/consent", {
+      role: "buyer",
+      body: { contract_hash: resource.data.batch.contract_hash },
+      intent: `consent:${id}:${resource.data.batch.contract_hash}`,
+    });
+    const order = await request(rootFor(id) + "/paypal/order", {
+      role: "buyer",
+      body: {},
+      intent: `paypal-order:${id}`,
+    });
+    const href = safeApprovalUrl(order.approval_url);
+    if (!href)
+      throw Error(
+        "The approval link is unavailable. Refresh the payment record; do not create another order.",
+      );
+    sessionStorage.setItem("pvd-checkout", id);
+    return { order, href };
+  }
   async function authorize() {
     setBusy(true);
     setError(null);
     try {
-      await request(rootFor(id) + "/consent", {
-        role: "buyer",
-        body: { contract_hash: resource.data.batch.contract_hash },
-        intent: `consent:${id}:${resource.data.batch.contract_hash}`,
-      });
-      const order = await request(rootFor(id) + "/paypal/order", {
-        role: "buyer",
-        body: {},
-        intent: `paypal-order:${id}`,
-      });
-      const href = safeApprovalUrl(order.approval_url);
-      if (!href)
-        throw Error(
-          "The approval link is unavailable. Refresh the payment record; do not create another order.",
-        );
-      sessionStorage.setItem("pvd-checkout", id);
+      const { href } = await prepareOrder();
       setUrl(href);
       resource.reload();
     } catch (e) {
       setError(e);
     } finally {
       setBusy(false);
+    }
+  }
+  // For the PayPal button: hand PayPal the id of the order our server created.
+  async function orderIdForButton() {
+    setError(null);
+    try {
+      const { order, href } = await prepareOrder();
+      const orderId = order.provider_id || new URL(href).searchParams.get("token");
+      if (!orderId) throw Error("The PayPal order could not be identified. No new order was created.");
+      setUrl(href);
+      return orderId;
+    } catch (e) {
+      setError(e);
+      throw e;
     }
   }
   async function check() {
@@ -744,7 +773,27 @@ function Agreement({ id, demo, session }) {
       description="Review the deliverables and temporary hold before continuing to PayPal."
     >
       <Loading resource={resource}>
-        {({ batch: b, financial: f }) => (
+        {({ batch: b, financial: f, paypal }) => {
+          const canOrder = ["AWAITING_BUYER_APPROVAL", "ACCEPTED", "AUTHORIZING", "AUTHORIZED"].includes(b.state);
+          const useSdk = f.environment === "sandbox" && !sdkFailed && !!paypalSdkUrl(paypal, b.currency);
+          const linkFlow = (
+            <>
+              <Actions>
+                <button className={useSdk ? "secondary" : "primary"} disabled={busy || !accepted || !canOrder} onClick={authorize}>
+                  {busy ? "Checking agreement…" : useSdk ? "Open PayPal in a new tab instead" : "Prepare PayPal authorization"}
+                </button>
+              </Actions>
+              {f.environment !== "fixture" && (url || safeApprovalUrl(f.order?.approval_url)) && (
+                <a className="paypal-button" href={url || safeApprovalUrl(f.order?.approval_url)} target="_blank" rel="noopener noreferrer">
+                  Continue to PayPal Sandbox
+                </a>
+              )}
+              <button className="secondary" onClick={check} disabled={busy || !b.consented_at}>
+                {f.environment === "fixture" ? "Confirm simulated fixture authorization" : "I approved in PayPal — check authorization"}
+              </button>
+            </>
+          );
+          return (
           <div className="two-column">
             <section className="document-panel">
               <Status>{f.environment || "Environment unavailable"}</Status>
@@ -763,9 +812,9 @@ function Agreement({ id, demo, session }) {
                   ["Batch", b.id],
                   [
                     "Deliverables",
-                    `${b.units.length} clips at ${money(b.units[0]?.price_minor || 0)} each`,
+                    `${b.units.length} clips at ${money(b.units[0]?.price_minor || 0, b.currency)} each`,
                   ],
-                  ["Maximum authorization", money(b.ceiling_minor)],
+                  ["Maximum authorization", money(b.ceiling_minor, b.currency)],
                   ["Delivery window ends", stamp(b.deadline)],
                   ["Files retained until", stamp(b.retention_until)],
                   [
@@ -785,9 +834,11 @@ function Agreement({ id, demo, session }) {
                 verification.
               </p>
               <p>
-                If eight of ten $5 clips qualify, the final charge is $40. The
-                unused $10 authorization is not a refund. The merchant bears the
-                risk if the final capture fails.
+                You are charged {money(b.units[0]?.price_minor || 0, b.currency)} for
+                each clip that qualifies, up to {money(b.ceiling_minor, b.currency)}. Any
+                part of the authorization that is not charged is released; it
+                is not a refund. The merchant bears the risk if the final
+                capture fails.
               </p>
             </section>
             <section className="document-panel">
@@ -813,46 +864,29 @@ function Agreement({ id, demo, session }) {
                     I agree to the deliverables, technical billability and
                     retention date.
                   </label>
-                  <Actions>
-                    <button
-                      className="primary"
-                      disabled={
-                        busy ||
-                        !accepted ||
-                        ![
-                          "AWAITING_BUYER_APPROVAL",
-                          "ACCEPTED",
-                          "AUTHORIZING",
-                          "AUTHORIZED",
-                        ].includes(b.state)
-                      }
-                      onClick={authorize}
-                    >
-                      {busy
-                        ? "Checking agreement…"
-                        : "Prepare PayPal authorization"}
-                    </button>
-                  </Actions>
-                  {f.environment !== "fixture" &&
-                    (url || safeApprovalUrl(f.order?.approval_url)) && (
-                      <a
-                        className="paypal-button"
-                        href={url || safeApprovalUrl(f.order?.approval_url)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Continue to PayPal Sandbox
-                      </a>
-                    )}
-                  <button
-                    className="secondary"
-                    onClick={check}
-                    disabled={busy || !b.consented_at}
-                  >
-                    {f.environment === "fixture"
-                      ? "Confirm simulated fixture authorization"
-                      : "I approved in PayPal — check authorization"}
-                  </button>
+                  {useSdk ? (
+                    <>
+                      <PayPalButton
+                        config={paypal}
+                        currency={b.currency}
+                        disabled={busy || !accepted || !canOrder}
+                        createOrder={orderIdForButton}
+                        onApprove={check}
+                        onCancel={() => setError(Error("PayPal was closed before approval. Nothing was authorized; the same order is kept."))}
+                        onError={(e) => setError((prev) => prev || e)}
+                        onUnavailable={() => setSdkFailed(true)}
+                      />
+                      <p className="plain-note">
+                        PayPal Sandbox. Approving places a hold of up to {money(b.ceiling_minor, b.currency)}. It is confirmed here only after our server checks it with PayPal.
+                      </p>
+                      <details className="paypal-fallback">
+                        <summary>PayPal window did not open, or was closed?</summary>
+                        {linkFlow}
+                      </details>
+                    </>
+                  ) : (
+                    linkFlow
+                  )}
                   {f.environment === "fixture" && (
                     <p className="flow-notice">
                       Fixture only: the next check uses simulated buyer
@@ -872,7 +906,8 @@ function Agreement({ id, demo, session }) {
               </Actions>
             </section>
           </div>
-        )}
+          );
+        }}
       </Loading>
     </Page>
   );
@@ -1205,7 +1240,7 @@ function Payments({ id, role }) {
                 <dl className="payment-figures">
                   <div data-tone="authorized">
                     <dt>Authorized hold</dt>
-                    <dd>{money(b.ceiling_minor)}</dd>
+                    <dd>{money(b.ceiling_minor, b.currency)}</dd>
                     <Chip tone={f.authorization?.state === "AUTHORIZED" ? "authorized" : "neutral"} quiet>
                       {f.authorization
                         ? `${readableState(f.authorization.state)}, not a charge`
@@ -1235,7 +1270,7 @@ function Payments({ id, role }) {
                     <dd>{money(totals.net)}</dd>
                     <Chip tone="neutral" quiet>
                       {totals.captured
-                        ? `${money(b.ceiling_minor - totals.captured)} never taken`
+                        ? `${money(b.ceiling_minor - totals.captured, b.currency)} never taken`
                         : "Confirmed amounts only"}
                     </Chip>
                   </div>
@@ -2160,6 +2195,9 @@ export function Workspace() {
     "operations",
     "settings",
     "demo",
+    "start",
+    "signup",
+    "dashboard",
   ].includes(parts[0])
     ? "operator"
     : path.startsWith("/buyer/")
@@ -2192,8 +2230,9 @@ export function Workspace() {
   const environment = {
     demo: "Illustrative walkthrough",
     fixture: "Test fixtures",
-    sandbox: "PayPal Sandbox",
-    unverified: "Environment unverified",
+    // A hosted demo sign-in is a shared Sandbox account, not the visitor's own.
+    sandbox: session?.demo ? "Sandbox demo" : "PayPal Sandbox",
+    unverified: session?.demo ? "Sandbox demo · unverified" : "Environment unverified",
   }[envKind];
   async function connect() {
     setConnectionError(null);
@@ -2208,19 +2247,48 @@ export function Workspace() {
     }
   }
   let screen;
+  const openDemo = () => {
+    setMode("demo");
+    navigate(`/batches/${DEMO_BATCH_ID}`);
+  };
   if (!parts.length)
     return (
       <Landing
         connect={connect}
         connectionError={connectionError}
         mode={mode}
-        openDemo={() => {
-          setMode("demo");
-          navigate(`/batches/${DEMO_BATCH_ID}`);
-        }}
+        openDemo={openDemo}
       />
     );
-  if (parts[0] === "demo")
+  if (parts[0] === "start")
+    screen = (
+      <Page
+        eyebrow="Start here"
+        title={<>Run the whole job, <em>one step at a time.</em></>}
+        description="A buyer agrees and authorizes with PayPal. You find what was lost, restore it, and capture only what was delivered. Each step below opens the screen where it happens."
+      >
+        <Start
+          envKind={envKind}
+          demo={demo}
+          openDemo={openDemo}
+          connect={connect}
+          canConnect={import.meta.env.DEV || !!session}
+          demoLogin={!!session?.demo}
+          role={session?.role || "operator"}
+        />
+      </Page>
+    );
+  else if (parts[0] === "signup")
+    screen = (
+      <Page
+        eyebrow="Start here · Integrate"
+        title={<>Create a <em>Sandbox merchant account.</em></>}
+        description="For your own integration. You get an API key for your server; your buyers never see it."
+      >
+        <Signup demo={demo} />
+      </Page>
+    );
+  else if (parts[0] === "demo")
     screen = (
       <Page title="Opening the walkthrough…" description="Loading example records." />
     );
@@ -2229,7 +2297,7 @@ export function Workspace() {
       <CaseWorkspace
         key={`${id}:${mode}`}
         id={id}
-        view={["analysis", "settlement", "record"].includes(parts[2]) ? parts[2] : ""}
+        view={["analysis", "settlement", "record", "timeline"].includes(parts[2]) ? parts[2] : ""}
         environment={environment}
         envKind={envKind}
       />
@@ -2271,6 +2339,18 @@ export function Workspace() {
   else if (parts[0] === "settings")
     screen = <Connections demo={demo} connect={connect} session={session} />;
   else if (parts[0] === "operations") screen = <Operations />;
+  else if (parts[0] === "dashboard")
+    screen = (
+      <Page
+        eyebrow="Records · Dashboard"
+        title={<>Every delivery, <em>and what it settled to.</em></>}
+        description="Clips ordered, delivered and recovered, and how each PayPal hold was split. Rearrange it or add your own widgets."
+      >
+        <Suspense fallback={<section className="sheet dash-state" aria-busy="true"><div className="skeleton skeleton-block" /></section>}>
+          <Dashboard envKind={envKind} />
+        </Suspense>
+      </Page>
+    );
   else if (parts[0] === "checkout-return" || parts[0] === "checkout-cancel") {
     const batch = sessionStorage.getItem("pvd-checkout");
     screen = (
@@ -2363,13 +2443,27 @@ export function Workspace() {
     );
   if (
     session?.role === "buyer" &&
-    ["batches", "tasks", "new", "operations", "settings"].includes(parts[0])
+    ["batches", "tasks", "new", "operations", "settings", "start", "dashboard"].includes(parts[0])
   )
     screen = (
       <Page
         title="This page is for merchants"
-        description="Open your private delivery link to continue."
-      />
+        description={
+          session.demo
+            ? "You are signed in as the demo buyer. The guided steps are read from the merchant's records."
+            : "Open your private delivery link to continue."
+        }
+      >
+        {/* Shared Sandbox demo: one visitor plays both sides. */}
+        {session.demo && (
+          <a
+            className="btn btn-proof"
+            href={`/api/demo-login?as=operator&returnTo=${encodeURIComponent("/#/start")}`}
+          >
+            Switch to the demo merchant
+          </a>
+        )}
+      </Page>
     );
   return (
     <ProductShell

@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import {
+  CompassIcon,
   SquaresFourIcon,
   ScanIcon,
+  ChartBarIcon,
+  ClockIcon,
   SparkleIcon,
   ScalesIcon,
   ScrollIcon,
@@ -91,6 +94,9 @@ const TITLES = {
   settings: "Workspace",
   operations: "Operations",
   new: "New delivery",
+  start: "Start here",
+  dashboard: "Dashboard",
+  signup: "Create account",
   signin: "Sign in",
   privacy: "Privacy and retention",
 };
@@ -156,6 +162,12 @@ export function ProductShell({
               Merchant workspace
             </a>
           )}
+          {session?.demo && (
+            <a className="text-link" href={`/api/demo-login?as=operator&returnTo=${encodeURIComponent("/#/start")}`}>
+              <ArrowLeftIcon size={14} aria-hidden="true" />
+              Back to the guided steps
+            </a>
+          )}
           <span className="tag-env" data-env={envKind}>{environment}</span>
           <ThemeToggle />
         </header>
@@ -181,13 +193,16 @@ export function ProductShell({
     </a>
   );
   const workspace = [
+    item("/start", "Start here", CompassIcon, current === "start" || current === "signup"),
     item("/batches", "Command center", SquaresFourIcon, (current === "batches" && !batchId) || current === "new"),
     item(`/batches/${caseId}`, "Investigation", ScanIcon, sub === "", !!caseId, caseId ? caseId.slice(0, 4) : null),
+    item(`/batches/${caseId}/timeline`, "Recovery window", ClockIcon, sub === "timeline", !!caseId),
     item(`/batches/${caseId}/analysis`, "AI analysis", SparkleIcon, sub === "analysis", !!caseId),
     item(`/batches/${caseId}/settlement`, "Settlement", ScalesIcon, sub === "settlement", !!caseId),
     item(`/batches/${caseId}/record`, "Resolution record", ScrollIcon, sub === "record", !!caseId),
   ];
   const records = [
+    item("/dashboard", "Dashboard", ChartBarIcon, current === "dashboard"),
     item("/payments", "Payments", CreditCardIcon, current === "payments"),
     item("/support", "Buyer messages", ChatTextIcon, current === "support"),
     item("/settings", "Workspace", GearSixIcon, current === "settings" || current === "operations"),

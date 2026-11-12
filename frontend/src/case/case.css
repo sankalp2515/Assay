@@ -266,3 +266,5 @@ button.station[aria-pressed="true"] .station-node[data-state="broken"] { box-sha
 .screening-empty[data-backdrop] { position: absolute; inset: 0; max-width: none; align-content: center; color: var(--darkroom-fg); isolation: isolate; }
 .screening-backdrop { position: absolute; inset: 0; z-index: -1; width: 100%; height: 100%; object-fit: cover; opacity: 0.38; filter: grayscale(0.5); }
 .screening-note { position: absolute; right: 10px; bottom: 10px; padding: 2px 6px; border: 1px dashed color-mix(in oklab, var(--darkroom-fg) 45%, transparent); border-radius: 3px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--darkroom-fg); }
+.ledger-scroll { container-type: inline-size; }
+@container (max-width: 840px) { .unit-select .unit-title { display: none; } }

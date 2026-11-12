@@ -1,20 +1,12 @@
 // Loads one delivery and exposes the operator/buyer actions. Money authority stays
 // on the server: previews are validated here only so a stale review cannot be shown.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { contentBlob, request } from "../api.js";
 import { approvalExpired, financialState, validatePreview } from "../domain.js";
-import { sha256Hex } from "./model.js";
+import { recoveryReceipts, sha256Hex } from "./model.js";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const HARD = [401, 403, 404];
-
-function storedReceipts(id) {
-  try {
-    return JSON.parse(sessionStorage.getItem(`pvd-restored:${id}`) || "[]");
-  } catch {
-    return [];
-  }
-}
 
 export function useCase(id, role = "operator") {
   const root = `/v1/batches/${encodeURIComponent(id)}`;
@@ -25,7 +17,10 @@ export function useCase(id, role = "operator") {
   const [notice, setNotice] = useState("");
   const [preview, setPreview] = useState(null);
   const [pending, setPending] = useState(null);
-  const [receipts, setReceipts] = useState(() => storedReceipts(id));
+  // Which clips were restored comes from the batch record. The receipt returned by a
+  // restore in this visit only adds its detail (hash, checker) and is never stored.
+  const [fresh, setFresh] = useState([]);
+  const receipts = useMemo(() => recoveryReceipts(data?.batch, fresh), [data?.batch, fresh]);
   const approveIntent = useRef(null);
   const mounted = useRef(true);
   const busyRef = useRef(false);
@@ -111,7 +106,7 @@ export function useCase(id, role = "operator") {
     mounted.current = true;
     setData(null);
     setLoadError(null);
-    setReceipts(storedReceipts(id));
+    setFresh([]);
     load().catch((e) => mounted.current && setLoadError(e));
     return () => {
       mounted.current = false;
@@ -198,15 +193,7 @@ export function useCase(id, role = "operator") {
         sha256: receipt.sha256,
         observed_at: receipt.observed_at || new Date().toISOString(),
       };
-      setReceipts((all) => {
-        const next = [...all.filter((r) => r.unit_id !== kept.unit_id), kept];
-        try {
-          sessionStorage.setItem(`pvd-restored:${id}`, JSON.stringify(next));
-        } catch {
-          /* Optional. */
-        }
-        return next;
-      });
+      setFresh((all) => [...all.filter((r) => r.unit_id !== kept.unit_id), kept]);
       await runInvestigation(
         "Refresh after restoring purchaser access to the original archived output.",
       );

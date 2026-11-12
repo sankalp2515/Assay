@@ -267,6 +267,20 @@ const EVENT_LABELS = {
 };
 
 /** Chronological record. Every entry names its source; AI entries are marked as such. */
+/**
+ * Restored clips as the server records them (`batch.recovered`), each enriched with the
+ * receipt detail returned by a restore made in this visit, when there is one. A receipt
+ * the batch does not list is ignored: the server record decides what counts as restored.
+ */
+export function recoveryReceipts(batch, fresh = []) {
+  return (batch?.recovered || []).map((r) => ({
+    ...fresh.find((f) => f.unit_id === r.unit_id),
+    unit_id: r.unit_id,
+    artifact_id: r.artifact_id,
+    observed_at: r.recovered_at,
+  }));
+}
+
 export function buildTimeline({ batch, activity = [], financials, operations = [], assessment, review, receipts = [] }) {
   const items = [];
   const push = (at, source, title, detail = "", extra = {}) => {
@@ -285,7 +299,7 @@ export function buildTimeline({ batch, activity = [], financials, operations = [
   if (assessment?.completed_at || assessment?.created_at)
     push(assessment.completed_at || assessment.created_at, "AI", `Investigation ${assessment.state === "VALID" ? "completed" : assessment.state.toLowerCase().replaceAll("_", " ")}`, "Cited findings and proposals. No authority over money.", { reference: assessment.model, tone: "ai" });
   for (const r of receipts)
-    push(r.observed_at, "Delivery", `Original restored for clip ${pad(batch.units.findIndex((u) => u.id === r.unit_id) + 1)}`, `Buyer route check: ${String(r.outcome || "").toLowerCase()}. No new render.`, { reference: r.receipt_hash, tone: "confirmed" });
+    push(r.observed_at, "Delivery", `Original restored for clip ${pad(batch.units.findIndex((u) => u.id === r.unit_id) + 1)}`, r.outcome ? `Buyer route check: ${String(r.outcome).toLowerCase()}. No new render.` : "Recorded by the service. No new render.", { reference: r.receipt_hash, tone: "confirmed" });
   for (const op of operations) {
     const kind = op.kind === "CAPTURE" ? "Capture" : op.kind === "VOID" ? "Authorization release" : "Refund";
     const state = op.state === "CONFIRMED" ? "confirmed" : op.state === "UNKNOWN" ? "outcome unknown" : op.state.toLowerCase().replaceAll("_", " ");
