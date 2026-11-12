@@ -325,7 +325,7 @@ export async function createGateway(options: GatewayOptions) {
       return reply.code(403).send({ message: "Merchant access required" });
     return {
       buyers: s.demo === true
-        ? [{ id: String(s.buyer_id), name: "Demo buyer" }]
+        ? [{ id: String(s.buyer_id), name: s.account === true ? "Test buyer" : "Demo buyer" }]
         : Object.values(o.members)
         .filter((m) => m.role === "buyer")
         .map((m) => ({

@@ -20,6 +20,7 @@ import {
   signOut,
   buyerDirectory,
   setDemoMode,
+  LIVE_DEMO_HREF,
 } from "./api.js";
 import {
   demoBatch,
@@ -48,7 +49,7 @@ import { coarseStations, deliveryStage, filterDeliveries } from "./ui/delivery-v
 import { ProofLine } from "./ui/ProofLine.jsx";
 import { ProductShell } from "./ui/ProductShell.jsx";
 import { Chip, LoadingCard, Reference, stamp } from "./ui/kit.jsx";
-import { PayPalLogo } from "./ui/PayPalLogo.jsx";
+import { PayPalLogo, withPayPal } from "./ui/PayPalLogo.jsx";
 
 const OP_TONE = {
   CONFIRMED: "confirmed",
@@ -2364,7 +2365,20 @@ export function Workspace() {
   else if (parts[0] === "batches")
     screen = <BatchQueue demo={demo} connect={connect} />;
   else if (parts[0] === "new")
-    screen = demo ? (
+    screen = demo && live ? (
+      // The walkthrough cannot create real agreements. On the hosted Sandbox, offer the
+      // visitor their own live workspace instead of a settings page.
+      <Page
+        eyebrow="Command center · New delivery"
+        title={<>New deliveries need <em>a live workspace.</em></>}
+        description="The walkthrough answers from example records. Open your own PayPal Sandbox workspace to create a real agreement, approve the hold and settle it with test money."
+      >
+        <section className="document-panel">
+          <a className="btn btn-proof" href={LIVE_DEMO_HREF}>{withPayPal("Run it live on PayPal Sandbox")}</a>
+          <p>Merchants with an account can <a className="text-link" href="#/signin">sign in</a> instead.</p>
+        </section>
+      </Page>
+    ) : demo ? (
       <Connections demo connect={connect} />
     ) : (
       <NewBatch session={session} />

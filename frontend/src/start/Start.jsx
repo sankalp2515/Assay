@@ -76,7 +76,10 @@ export function Start({ envKind, demo, openDemo, connect, canConnect, demoLogin 
   const list = useBatches(envKind);
   const open = list.items.filter((b) => b.state !== "CLOSED");
   const [chosen, setChosen] = useState("");
-  const id = chosen || open[0]?.id || list.items[0]?.id || "";
+  // Right after a live sign-in the list can still hold the walkthrough's example; never
+  // ask the real services for it.
+  const pick = chosen || open[0]?.id || list.items[0]?.id || "";
+  const id = envKind !== "demo" && pick.startsWith("demo-") ? "" : pick;
   const { batch, review, reread } = useBatch(id, envKind, demoLogin && role !== "buyer");
   const [provider, setProvider] = useState({ state: "idle", note: "" });
   const [ownClips, setOwnClips] = useState("");
@@ -380,7 +383,7 @@ export function Signup({ demo }) {
     <div className="start-signup">
       <form className="sheet start-form" onSubmit={submit}>
         <div className="sheet-body">
-          {demo && <p className="flow-notice">You are in the illustrative walkthrough, which has no accounts. Connect services to sign up.</p>}
+          {demo && !demoLoginAvailable() && <p className="flow-notice">You are in the illustrative walkthrough, which has no accounts. Connect services to sign up.</p>}
           <label>
             <span>Business name</span>
             <input name="name" required minLength={2} maxLength={80} autoComplete="organization" />
@@ -389,15 +392,15 @@ export function Signup({ demo }) {
             <span>Work email</span>
             <input name="email" type="email" required maxLength={200} autoComplete="email" />
           </label>
-          <details>
-            <summary>I have an invite code</summary>
+          <details open={demoLoginAvailable() || undefined}>
+            <summary>Invite code</summary>
             <label>
               <span>Invite code</span>
               <input name="invite" maxLength={200} autoComplete="off" />
             </label>
           </details>
           {error && <p className="inline-banner" data-tone="failed" role="alert">{error}</p>}
-          <button className="btn btn-proof btn-lg" disabled={busy || demo}>{busy ? "Creating the account…" : "Create Sandbox account"}</button>
+          <button className="btn btn-proof btn-lg" disabled={busy || (demo && !demoLoginAvailable())}>{busy ? "Creating the account…" : "Create Sandbox account"}</button>
           <p className="plain-note">Sandbox only. No live payments are possible with this account.</p>
         </div>
       </form>

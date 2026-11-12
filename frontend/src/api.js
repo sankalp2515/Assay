@@ -220,7 +220,9 @@ export async function contentBlob(artifact, deliveryToken, signal) {
 
 /** Creates a merchant account. Public route: no session, and never retried here. */
 export async function signup(body) {
-  if (demoMode)
+  // On the hosted gateway a signed-out visitor is shown the walkthrough, but sign-up
+  // goes to the real service. Only a page with no gateway at all has no accounts.
+  if (demoMode && !demoLoginOffered)
     throw new ApiError("The walkthrough has no accounts. Connect services to sign up.", 409, "demo");
   const res = await fetch("/api/commerce/v1/signup", {
     method: "POST",
