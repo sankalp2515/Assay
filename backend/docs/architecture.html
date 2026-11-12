@@ -1,0 +1,90 @@
+<!doctype html>
+<!-- Source of architecture.png. Render: node scripts/render-architecture.cjs (Playwright, 2x). -->
+<html><head><meta charset="utf-8"><title>Assay architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&family=Instrument+Serif:ital@0;1&display=block" rel="stylesheet">
+<style>
+:root{--paper:oklch(96.8% 0.009 85);--ink:oklch(19% 0.012 60);--soft:oklch(34% 0.012 60);--muted:oklch(47% 0.013 60);--rule:oklch(86% 0.013 85);--card:oklch(98.5% 0.005 85);--proof:oklch(49% 0.17 258);--proof-soft:oklch(93% 0.035 258);--verified:oklch(50% 0.11 158);--verified-soft:oklch(93% 0.035 158);--amber:oklch(48% 0.1 70);--amber-soft:oklch(94% 0.045 85);--ext:oklch(93.5% 0.013 85)}
+*{box-sizing:border-box;margin:0}
+body{width:1600px;background:var(--paper);font-family:Geist,sans-serif;color:var(--ink);padding:44px 48px 40px}
+.eyebrow{font-family:'Geist Mono';font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:'Instrument Serif';font-weight:400;font-size:46px;letter-spacing:-.01em;margin:6px 0 4px}
+h1 em{color:var(--proof)}
+.lede{color:var(--soft);font-size:16px;max-width:1100px}
+.tier{display:grid;gap:14px;margin-top:16px}
+.label{font-family:'Geist Mono';font-size:11px;letter-spacing:.16em;color:var(--muted);margin:22px 0 -6px;display:flex;align-items:center;gap:10px}
+.label::after{content:"";flex:1;height:1px;background:var(--rule)}
+.b{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;box-shadow:0 1px 0 oklch(19% 0.012 60 / .04),0 12px 28px -20px oklch(19% 0.012 60 / .25)}
+.b h3{font-size:16px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.b p{font-size:13px;color:var(--soft);margin-top:6px;line-height:1.45}
+.b code{font-family:'Geist Mono';font-size:11.5px;color:var(--ink);background:var(--ext);padding:1px 5px;border-radius:4px}
+.tag{font-family:'Geist Mono';font-size:10px;letter-spacing:.12em;padding:3px 7px;border-radius:5px;background:var(--ext);color:var(--muted);white-space:nowrap}
+.tag.v{background:var(--verified-soft);color:var(--verified)}
+.tag.p{background:var(--proof-soft);color:var(--proof)}
+.edge{border-color:oklch(49% 0.17 258 / .45)}
+.svc{border-top:3px solid var(--proof)}
+.db{margin-top:10px;border:1px dashed var(--rule);border-radius:8px;padding:7px 10px;font-size:12px;color:var(--muted);background:var(--paper)}
+.ext{background:var(--ext)}
+.ai{background:repeating-linear-gradient(135deg,var(--amber-soft) 0 8px,oklch(96% 0.03 85) 8px 16px);border:1px dashed oklch(72% 0.13 75)}
+.ai h3{color:var(--amber)}
+.bus{margin-top:12px;border:1px solid oklch(49% 0.17 258 / .35);background:var(--proof-soft);border-radius:10px;padding:10px 16px;font-size:13.5px;color:var(--ink);display:flex;gap:26px;justify-content:center}
+.bus b{color:var(--proof)}
+.flow{display:flex;align-items:center;gap:10px;font-family:'Geist Mono';font-size:12.5px;margin-top:10px;flex-wrap:wrap}
+.flow span{background:var(--card);border:1px solid var(--rule);border-radius:999px;padding:5px 11px}
+.flow i{font-style:normal;color:var(--proof);font-weight:700}
+.flow .ok{border-color:var(--verified);color:var(--verified)}
+.rule{margin-top:20px;display:grid;grid-template-columns:1.25fr 1fr;gap:14px}
+.ver{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;font-size:13px;color:var(--soft);line-height:1.6}
+.ver b{color:var(--ink)}
+.ver .y::before{content:"✓ ";color:var(--verified);font-weight:700}
+.ver .n::before{content:"○ ";color:var(--muted)}
+</style></head><body>
+<p class="eyebrow">Assay · system architecture · hosted PayPal Sandbox · 12 Nov 2026</p>
+<h1>Five services. <em>One exact capture.</em></h1>
+<p class="lede">Each service owns its data and its secrets. They talk through signed calls and a transactional outbox. Only Payments can reach PayPal, only Investigation can reach a model, and the media verifier holds no credentials at all.</p>
+
+<p class="label">CLIENTS</p>
+<div class="tier" style="grid-template-columns:repeat(4,1fr)">
+  <div class="b"><h3>Merchant workspace <span class="tag">REACT · VITE</span></h3><p>Proof line, investigation, recovery window (Bryntum), settlement, dashboard (AG Studio).</p></div>
+  <div class="b"><h3>Buyer delivery <span class="tag">PRIVATE ROUTE</span></h3><p>Agreement, PayPal approval, clips, signed per-clip statement. One buyer, one batch, 30-minute tokens.</p></div>
+  <div class="b"><h3>Merchant server <span class="tag">API · SDK</span></h3><p>REST + <code>@assay/node</code>. Hashed keys; an <code>integration</code> key can never approve money. Signed webhooks back.</p></div>
+  <div class="b"><h3>AI agents <span class="tag">MCP</span></h3><p>Open batches, register tasks, read evidence. No tool can approve, refund or cancel.</p></div>
+</div>
+
+<p class="label">EDGE · GOOGLE CLOUD VM (e2-medium, Docker Compose)</p>
+<div class="tier" style="grid-template-columns:1fr 2fr">
+  <div class="b edge"><h3>Caddy <span class="tag p">TLS</span></h3><p>Automatic HTTPS, routes <code>/api</code>, <code>/v1</code>, buyer artifacts and demo media.</p></div>
+  <div class="b edge"><h3>Web gateway <span class="tag p">SESSIONS</span></h3><p>Cookie sessions with CSRF, strict CSP, per-visitor isolated demo workspaces (24 h), restricted demo routes, signed short-lived service tokens per tenant. OIDC ready.</p></div>
+</div>
+
+<p class="label">DOMAIN SERVICES · FASTIFY + TYPESCRIPT · ONE POSTGRESQL DATABASE EACH, ROW-LEVEL SECURITY PER TENANT</p>
+<div class="tier" style="grid-template-columns:repeat(5,1fr)">
+  <div class="b svc"><h3>Commerce</h3><p>Immutable agreement + consent, clip units, saga, exact expiring review, one-time closure permit. Replicate webhook connector.</p><div class="db">commerce DB · contracts · permits</div></div>
+  <div class="b svc"><h3>Provider</h3><p>Task intake (Runway, Replicate, reported URL). Looks up a known job before any re-render. Unknown submissions block replay.</p><div class="db">provider DB · attempts · task index</div></div>
+  <div class="b svc"><h3>Delivery</h3><p>Private archive with SHA-256, publish to the buyer, buyer-route fetch receipt, restore of an archived original, KERNEL probes.</p><div class="db">delivery DB · artifacts · receipts</div></div>
+  <div class="b svc"><h3>Investigation</h3><p>Durable AI runs over read-only tools; every citation validated; retried through the outbox; abstains when unsure.</p><div class="db">investigation DB · assessments</div></div>
+  <div class="b svc"><h3>Payments</h3><p>Sole PayPal credential owner. Atomic capture/refund reservations, cash journal, read-back, verified webhooks, Ed25519 statements.</p><div class="db">payments DB · operations · journal</div></div>
+</div>
+<div class="bus"><span><b>Transactional outbox</b> per service</span><span>Idempotent consumers</span><span>Bounded retries with backoff</span><span>Stale-worker fencing</span><span>Reconciliation jobs</span></div>
+
+<p class="label">OUTSIDE ASSAY</p>
+<div class="tier" style="grid-template-columns:1.3fr 1fr 1fr 1fr 1fr">
+  <div class="b ext"><h3>PayPal Sandbox <span class="tag v">VERIFIED</span></h3><p>Orders v2 <code>AUTHORIZE</code> · Payments v2 partial capture with <code>note_to_payer</code>, void, refund on original capture · Webhooks with signature verification · Disputes read-back.</p></div>
+  <div class="b ai"><h3>AI models</h3><p>Gemini primary; Groq and Vertex AI fallbacks. Structured output, cited evidence only. No payment tools.</p></div>
+  <div class="b ext"><h3>Media verifier</h3><p>Isolated container, no credentials, no database. Bounded bytes, ffprobe decode, hash.</p></div>
+  <div class="b ext"><h3>KERNEL <span class="tag v">VERIFIED</span></h3><p>Cloud Chromium fetches each delivered clip over the internet, matches SHA-256, plays it.</p></div>
+  <div class="b ext"><h3>Video providers</h3><p>Runway, Replicate, or any approved host. Outputs expire in hours; Assay archives first.</p></div>
+</div>
+
+<p class="label">ONE CASE, END TO END (hosted run, batch 43b76034)</p>
+<div class="flow">
+  <span>Agreement 10 × $5</span><i>→</i><span>PayPal AUTHORIZE $50</span><i>→</i><span>7 clips archived + published</span><i>→</i><span>AI: clip 08 archived, never published</span><i>→</i><span>Merchant restores original</span><i>→</i><span>Buyer-route SHA-256 match</span><i>→</i><span>Exact review, approve</span><i>→</i><span class="ok">One $40 capture · $10 never taken</span><i>→</i><span class="ok">Webhook verified · signed statement</span>
+</div>
+
+<div class="rule">
+  <div class="ver"><b>Closure requires all four:</b> a current AI assessment with validated citations · buyer-route proof for every billed clip · a merchant approval bound to exact state, amount and expiry · PayPal read-back of status, amount, currency and merchant. AI outage pauses new closures; archiving, buyer access and safe release of the hold continue.</div>
+  <div class="ver">
+    <div class="y"><b>Verified:</b> 75 automated tests · 9 native PostgreSQL checks · hosted $50 → $40 Sandbox run · both PayPal webhooks · KERNEL 8 / 8 · Postman 0 failures on hosted</div>
+    <div class="n"><b>Not yet:</b> live provider recovery · production PayPal · multi-VM failover</div>
+  </div>
+</div>
+</body></html>

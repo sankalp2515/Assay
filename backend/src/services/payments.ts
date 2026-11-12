@@ -248,6 +248,13 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
           "authorization_pending",
           "Authorization is not confirmed",
         );
+        // Keep the order record in step with PayPal: once the buyer approved and the
+        // authorization is confirmed, the order is no longer CREATED.
+        await ctx.db.mutate(a.tenant, "order", b.batch_id, async (ord) => ({
+          ...ord,
+          state: typeof response.status === "string" ? response.status : "COMPLETED",
+          authorized_at: now(),
+        }));
         return ctx.db.mutate(
           a.tenant,
           "authorization",

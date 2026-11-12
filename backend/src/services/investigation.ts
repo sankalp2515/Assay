@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Context } from "../core/context.js";
 import { endpoint } from "../core/http.js";
-import { requireThat } from "../core/errors.js";
+import { Problem, requireThat } from "../core/errors.js";
 import {
   digest,
   id,
@@ -188,6 +188,20 @@ export function investigationRoutes(app: FastifyInstance, ctx: Context) {
           { assessment: String(record.id), reason: String((err as Error)?.message ?? err).slice(0, 300) },
           "assessment failed",
         );
+        // A model outage or an invalid answer is usually transient. Put the assessment
+        // back in the queue and let the outbox retry with backoff (up to AI_RUN_ATTEMPTS),
+        // so the merchant is not left on "AI unavailable" after one bad reply. No money
+        // moves while it waits; settlement still needs a VALID, current assessment.
+        const tries = Number(record.ai_attempts ?? 0) + 1;
+        if (tries < Math.max(1, Number(process.env.AI_RUN_ATTEMPTS ?? 3))) {
+          await ctx.db.mutate(a.tenant, "assessment", String(record.id), async (old) => ({
+            ...old,
+            state: "RESERVED",
+            ai_attempts: tries,
+            last_error_code: "assessment_unavailable_or_invalid",
+          }));
+          throw new Problem(503, "waiting_for_ai", "AI assessment failed; retrying");
+        }
         return ctx.db.mutate(
           a.tenant,
           "assessment",

@@ -132,24 +132,36 @@ export function ProductShell({
   useEffect(() => {
     document.title = `${pageName} · Assay`;
   }, [pageName]);
-  // Keep the last opened delivery so case links stay live from other pages.
+  // Keep the last opened delivery so case links stay live from other pages. It is
+  // remembered per workspace: a walkthrough case or another demo workspace's delivery
+  // must never become this workspace's case links (that showed "delivery not found").
+  const scope = demo ? "walkthrough" : "ws:" + (session?.workspace || session?.subject || "live");
   const [lastCase, setLastCase] = useState(() => {
     try {
-      return sessionStorage.getItem("assay-case") || "";
+      const saved = JSON.parse(sessionStorage.getItem("assay-case") || "null");
+      return saved && saved.scope === scope ? String(saved.id || "") : "";
     } catch {
       return "";
     }
   });
   useEffect(() => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("assay-case") || "null");
+      if (!saved || saved.scope !== scope) setLastCase("");
+    } catch {
+      /* Optional. */
+    }
+  }, [scope]);
+  useEffect(() => {
     if (batchId && ["batches", "payments", "support", "tasks", "buyer", "activity"].includes(current)) {
       setLastCase(batchId);
       try {
-        sessionStorage.setItem("assay-case", batchId);
+        sessionStorage.setItem("assay-case", JSON.stringify({ scope, id: batchId }));
       } catch {
         /* Optional. */
       }
     }
-  }, [batchId, current]);
+  }, [batchId, current, scope]);
   const caseId = batchId || lastCase;
   const merchant = session?.merchant_name || (demo ? "Lumen Reel" : "Merchant workspace");
 
@@ -185,9 +197,12 @@ export function ProductShell({
       </div>
     );
 
+  const warm = { Dashboard: () => import("../ops/Dashboard.jsx").catch(() => {}), "Recovery window": () => import("../case/Timeline.jsx").catch(() => {}) };
   const item = (to, label, Icon, active, enabled = true, count) => (
     <a
       key={label}
+      onPointerEnter={enabled ? warm[label] : undefined}
+      onFocus={enabled ? warm[label] : undefined}
       href={enabled ? `#${to}` : undefined}
       aria-current={active ? "page" : undefined}
       aria-disabled={enabled ? undefined : "true"}
@@ -265,7 +280,12 @@ export function ProductShell({
         {children}
         <footer className="assay-foot">
           <span>{demo ? "Illustrative walkthrough. No services, no payments." : <>AI proposes. You approve. <PayPalLogo size="sm" /> moves the money once.</>}</span>
-          <a href="#/privacy">Privacy and retention</a>
+          <nav aria-label="Footer">
+            <a href="#/start">Start here</a>
+            <a href="https://github.com/sankalp2515/Assay" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href="https://github.com/sankalp2515/Assay/blob/main/backend/evidence/hosted-sandbox-run.json" target="_blank" rel="noopener noreferrer">Hosted run record</a>
+            <a href="#/privacy">Privacy and retention</a>
+          </nav>
         </footer>
       </div>
     </div>

@@ -305,6 +305,9 @@ export async function createGateway(options: GatewayOptions) {
       expires_at: s.expires_at,
       environment: "sandbox",
       demo: s.demo === true,
+      // A short tag for this visitor's demo workspace, so the page never carries a
+      // delivery id from one workspace into another.
+      ...(s.demo === true ? { workspace: String(tenantOf(s)).slice(0, 8) } : {}),
       merchant_name: o.merchantName || "Demo merchant (Sandbox)",
     };
   });

@@ -301,3 +301,33 @@ test("unknown provider submission is never blindly repeated", async () => {
     await h.close();
   }
 });
+test("a failed AI assessment retries through the outbox and then settles normally", async () => {
+  const h = await harness();
+  try {
+    const b = await h.setup(1);
+    await h.seed(b, 1);
+    const model = h.contexts.investigation.model!;
+    const real = model.assess.bind(model);
+    let calls = 0;
+    model.assess = (async (...args: Parameters<typeof real>) => {
+      calls++;
+      if (calls === 1) throw new Error("model returned invalid JSON");
+      return real(...args);
+    }) as typeof model.assess;
+    const first = await h.request("/v1/batches/" + b.id + "/investigate", {});
+    assert.equal(first.statusCode, 200, first.body);
+    // The first run failed and was put back in the queue, not parked as WAITING_FOR_AI.
+    const queued = (await h.contexts.investigation.db.list<Json>(h.tenant, "assessment")).at(-1)!;
+    assert.equal(queued.state, "RESERVED");
+    assert.equal(queued.ai_attempts, 1);
+    // Let the backoff elapse, then the outbox retries the same assessment.
+    await h.contexts.investigation.db.tx(h.tenant, (q) => q.query("UPDATE outbox SET next_at=now() WHERE state='READY'"));
+    await dispatchOutbox(h.contexts.investigation, h.tenant);
+    const done = (await h.contexts.investigation.db.list<Json>(h.tenant, "assessment")).at(-1)!;
+    assert.equal(done.id, queued.id);
+    assert.equal(done.state, "VALID");
+    assert.equal(calls, 2);
+  } finally {
+    await h.close();
+  }
+});

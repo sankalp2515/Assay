@@ -6,7 +6,7 @@ This document supersedes the earlier modular-application design for implemented 
 
 ![Current service boundaries](architecture.png)
 
-[Download scalable SVG](architecture.svg)
+Source: [architecture.html](architecture.html) (rendered to PNG at 2×).
 
 ```mermaid
 flowchart TB

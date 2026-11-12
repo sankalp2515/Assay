@@ -194,13 +194,13 @@ Every claim names its kind of evidence.
 | AI reading of buyer messages: Gemini 25/30 vs keyword baseline 15/30, 0 invalid readings | [`claim-reading-evaluation.json`](backend/evidence/claim-reading-evaluation.json) | Real Gemini; 30 held-out messages; single run |
 | AI action choice on structured facts: Gemini 17/20, rules 20/20. This is why AI does not decide actions | [`investigation-evaluation.json`](backend/evidence/investigation-evaluation.json) | Real Gemini |
 | Concurrency, RLS, money bounds, encrypted restore | [`native-postgres.json`](backend/evidence/native-postgres.json) | Native PostgreSQL, local |
-| Full local gate: 74/74 tests, 9 native PostgreSQL checks, type check, build | [`local-quality.json`](backend/evidence/local-quality.json) | Local, fixtures |
+| Full local gate: 75/75 tests, 9 native PostgreSQL checks, type check, build | [`local-quality.json`](backend/evidence/local-quality.json) | Local, fixtures |
 | Hosted container smoke, 16 checks | [`container-smoke.json`](backend/evidence/container-smoke.json) | Hosted deployment |
 
 ## Architecture
 
 <div align="center">
-<img src="backend/docs/architecture.png" alt="Five services with their own databases, connected by a transactional outbox" width="820" />
+<img src="backend/docs/architecture.png" alt="Assay system architecture: clients, Caddy and web gateway on a Google Cloud VM, five services with their own databases, PayPal, AI models, media verifier, KERNEL and providers" width="900" />
 </div>
 
 Five Fastify services (**Commerce, Provider, Delivery, Investigation, Payments**), each with its own PostgreSQL database and row-level security, connected by a transactional outbox with idempotent consumers. An isolated media verifier with no credentials decodes every file.
