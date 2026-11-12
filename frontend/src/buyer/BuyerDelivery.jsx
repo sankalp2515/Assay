@@ -91,7 +91,7 @@ export function BuyerDelivery({ id }) {
         <div>
           <p className="eyebrow">{titleOf(batch)} · {units.length} clips · kept until {stamp(batch.retention_until)}</p>
           <h1>
-            {settled ? (voided ? <>Nothing was delivered. <em>Nothing was charged.</em></> : <>Your batch <em>is ready.</em></>) : ready.length ? <>{ready.length} of {units.length} clips <em>are ready.</em></> : <>Your clips are <em>on their way.</em></>}
+            {settled ? (voided ? <>Nothing was delivered. <em>Nothing was charged.</em></> : <>Your delivery <em>is ready.</em></>) : ready.length ? <>{ready.length} of {units.length} clips <em>are ready.</em></> : <>Your clips are <em>on their way.</em></>}
           </h1>
         </div>
         <p className="buyer-lead">

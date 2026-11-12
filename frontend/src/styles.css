@@ -258,7 +258,7 @@ dd,
   padding: 0;
 }
 .dot {
-  color: #aab5ae;
+  color: var(--muted);
 }
 .meta-divider {
   height: 14px;
@@ -295,7 +295,7 @@ dd,
   background: var(--paper-deep);
   border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
-  color: #5f786a;
+  color: var(--muted);
 }
 .thumbnail img {
   width: 100%;
@@ -304,7 +304,7 @@ dd,
 }
 .thumbnail.missing {
   background: var(--paper-deep);
-  color: #8c9991;
+  color: var(--muted);
 }
 .service-thumbnail {
   display: flex;
@@ -396,7 +396,7 @@ dd,
 .unavailable-message > svg {
   width: 30px;
   height: 30px;
-  color: #7e9386;
+  color: var(--muted);
 }
 .unavailable-message h3 {
   color: var(--ink);
@@ -622,7 +622,7 @@ dd,
 }
 .recovered-tag {
   font-size: 12px;
-  color: #216043;
+  color: var(--verified);
   background: var(--paper-deep);
   padding: 3px 6px;
   border-radius: 4px;
@@ -736,7 +736,7 @@ dd,
 }
 .message {
   background: var(--paper-deep);
-  color: #75491d;
+  color: var(--inferred-ink);
   border: 1px solid var(--rule);
 }
 .message .icon-button {
@@ -895,7 +895,7 @@ dd,
 }
 .expiry.expired {
   background: var(--paper-deep);
-  color: #825b16;
+  color: var(--inferred-ink);
 }
 .expiry svg {
   width: 16px;
@@ -1027,7 +1027,7 @@ dd,
     text-decoration: underline;
   }
   .clip:hover .thumbnail {
-    outline: 1px solid #9bb9a7;
+    outline: 1px solid var(--rule);
     outline-offset: 1px;
   }
 }

@@ -104,3 +104,13 @@ test("dashboard money uses each currency's own unit and leaves unsettled amounts
   assert.equal(d.clips[1].outcome, "Archived, not delivered");
   assert.equal(d.clips[1].price, 500);
 });
+
+test("own clip links: empty means pre-generated clips, and only one to three https links pass", async () => {
+  const { clipLinks } = await import("../src/ui/delivery-view.js");
+  assert.deepEqual(clipLinks("  "), { urls: [], error: "" });
+  assert.deepEqual(clipLinks("https://a.example/1.mp4\nhttps://b.example/2.mp4").urls, ["https://a.example/1.mp4", "https://b.example/2.mp4"]);
+  assert.ok(clipLinks("http://a.example/1.mp4").error);
+  assert.ok(clipLinks("https://user:pw@a.example/1.mp4").error);
+  assert.ok(clipLinks("not a link").error);
+  assert.ok(clipLinks("https://a.example/1 https://a.example/2 https://a.example/3 https://a.example/4").error);
+});

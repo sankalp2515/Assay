@@ -38,6 +38,7 @@ export function AuthorizationHandoff({
     <main id="main" className="flow-page">
       <div className="flow-heading">
         <div>
+          <p className="eyebrow">{role === "buyer" ? "Your delivery · Agreement" : "Delivery · Waiting for the buyer"}</p>
           <h1>{title}</h1>
           <p>
             {role === "buyer"
@@ -70,13 +71,13 @@ export function AuthorizationHandoff({
           </p>
           <div className="handoff-mobile-ceiling">
             <span>Maximum <PayPalLogo size="xs" /> authorization</span>
-            <strong>{money(batch.ceiling_minor)}</strong>
+            <strong>{money(batch.ceiling_minor, batch.currency)}</strong>
             <span>Not a confirmed charge</span>
           </div>
           <div className="handoff-actions">
             {role === "buyer" ? (
               <a className="primary flow-button" href={buyerPath}>
-                Review agreement & <PayPalLogo size="sm" />
+                Review the agreement and <PayPalLogo size="sm" /> hold
               </a>
             ) : (
               <>
@@ -148,8 +149,8 @@ export function AuthorizationHandoff({
           </div>
           <div className="preview-total">
             <span>Maximum authorization</span>
-            <strong>{money(batch.ceiling_minor)}</strong>
-            <span>USD - not a confirmed charge</span>
+            <strong>{money(batch.ceiling_minor, batch.currency)}</strong>
+            <span>{batch.currency || "USD"} · not a confirmed charge</span>
           </div>
           <dl className="settings-facts">
             <div>
@@ -161,7 +162,7 @@ export function AuthorizationHandoff({
             </div>
             <div>
               <dt>Price per clip</dt>
-              <dd>{money(batch.units[0]?.price_minor || 0)}</dd>
+              <dd>{money(batch.units[0]?.price_minor || 0, batch.currency)}</dd>
             </div>
             <div>
               <dt>Agreement reference</dt>

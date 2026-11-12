@@ -306,6 +306,33 @@ test("sign-up registers the new tenant with every service's worker", async () =>
   }
 });
 
+test("tenant directory keeps expired demo workspaces in a grace period and never starves new ones", async () => {
+  const h = await harness();
+  try {
+    const { knownTenants, registerTenant, resetTenantCache } = await import("../src/core/tenants.js");
+    const ctx = h.contexts.payments;
+    const hour = 3_600_000;
+    const live = "11111111-1111-4111-8111-111111111111";
+    const recent = "22222222-2222-4222-8222-222222222222";
+    const old = "33333333-3333-4333-8333-333333333333";
+    await registerTenant(ctx, old, new Date(Date.now() - 30 * 24 * hour).toISOString());
+    await registerTenant(ctx, recent, new Date(Date.now() - 2 * hour).toISOString());
+    await registerTenant(ctx, live, new Date(Date.now() + 22 * hour).toISOString());
+    resetTenantCache();
+    const served = await knownTenants(ctx, { TENANT_IDS: "" });
+    assert.ok(served.includes(live), "active workspace served");
+    assert.ok(served.includes(recent), "recently expired workspace still reconciled and cleaned up");
+    assert.ok(!served.includes(old), "workspace past the grace period dropped");
+    assert.ok(served.indexOf(live) < served.indexOf(recent), "newest first");
+    resetTenantCache();
+    const strict = await knownTenants(ctx, { TENANT_IDS: "", TENANT_WORKER_GRACE_HOURS: "0" });
+    assert.ok(strict.includes(live) && !strict.includes(recent));
+    resetTenantCache();
+  } finally {
+    await h.close();
+  }
+});
+
 test("GCS store writes once, reads and deletes through the JSON API", async () => {
   const { GcsStore } = await import("../src/adapters/storage.js");
   const { writeFile, mkdtemp } = await import("node:fs/promises");

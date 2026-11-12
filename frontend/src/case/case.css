@@ -8,7 +8,7 @@
 button.station { cursor: pointer; }
 .station-node { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--pending); background: var(--card); color: var(--proof-fg); transition: transform var(--dur-ui) var(--ease-out), box-shadow var(--dur-ui) ease; }
 .station-node[data-state="verified"] { border-color: var(--proof); background: var(--proof); }
-.station-node[data-state="broken"] { border-color: var(--broken); background: var(--broken); box-shadow: 0 0 0 4px color-mix(in oklab, var(--broken) 22%, transparent); animation: break-pulse 2.4s ease-in-out infinite; }
+.station-node[data-state="broken"] { border-color: var(--broken); background: var(--broken); box-shadow: 0 0 0 4px color-mix(in oklab, var(--broken) 22%, transparent); animation: break-pulse 2.4s ease-in-out 4; }
 .station-node[data-state="unknown"] { border-style: dashed; }
 .station-node[data-state="inferred"] { border-color: var(--inferred-ink); border-style: dashed; background: var(--inferred-soft); }
 button.station[aria-pressed="true"] .station-node { box-shadow: 0 0 0 4px color-mix(in oklab, var(--proof) 25%, transparent); transform: scale(1.1); }
@@ -23,7 +23,7 @@ button.station[aria-pressed="true"] .station-node[data-state="broken"] { box-sha
 .station-link[data-state="broken"] { border-top: 2px dashed var(--broken); opacity: 1; }
 .proofline[data-animate] .station-link { animation: grow-x 0.3s var(--ease-out) both; animation-delay: calc(var(--i) * 60ms); }
 .proofline[data-animate] .station-node { animation: pop-in 0.2s var(--ease-out) both; animation-delay: calc(var(--i) * 60ms + 40ms); }
-.proofline[data-animate] .station-node[data-state="broken"] { animation: pop-in 0.2s var(--ease-out) both, break-pulse 2.4s ease-in-out 0.8s infinite; animation-delay: calc(var(--i) * 60ms + 40ms), 0.8s; }
+.proofline[data-animate] .station-node[data-state="broken"] { animation: pop-in 0.2s var(--ease-out) both, break-pulse 2.4s ease-in-out 0.8s 4; animation-delay: calc(var(--i) * 60ms + 40ms), 0.8s; }
 .proofline[data-size="mini"] { align-items: center; width: 150px; }
 .proofline[data-size="mini"] .station { padding: 0; }
 .proofline[data-size="mini"] .station-node { width: 9px; height: 9px; border-width: 1.5px; animation: none; box-shadow: none; }
@@ -57,7 +57,7 @@ button.station[aria-pressed="true"] .station-node[data-state="broken"] { box-sha
 .evidence .evidence-title strong { font-size: 14px; font-weight: 500; }
 .evidence .evidence-title span { font-size: 12px; color: var(--muted); }
 .evidence li.hatch-inferred .evidence-title strong { color: var(--inferred-ink); }
-.evidence .source { margin-top: 4px; }
+.evidence .source { margin-top: 4px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty-line { padding: 24px 20px; color: var(--muted); font-size: 13.5px; }
 
 /* Clip ledger */
@@ -194,8 +194,11 @@ button.station[aria-pressed="true"] .station-node[data-state="broken"] { box-sha
 .checklist li[data-ok] svg { color: var(--verified); }
 .approve { width: 100%; margin-top: 12px; }
 .fine { margin-top: 10px; font-size: 12px; color: var(--muted); line-height: 1.5; }
-.outcome, .pending-line { display: flex; gap: 8px; align-items: center; font-size: 15px; font-weight: 500; margin-bottom: 14px; }
+.pending-line { display: flex; gap: 8px; align-items: center; font-size: 15px; font-weight: 500; margin-bottom: 14px; }
+.outcome { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: center; margin-bottom: 16px; padding: 16px; border: 1px solid var(--confirmed-line); border-radius: 8px; background: var(--verified-soft); animation: fade-in 0.3s ease both; }
 .outcome svg { color: var(--verified); }
+.outcome .display { font-size: 28px; color: var(--ink); }
+.outcome p:last-child { grid-column: 2; font-size: 13px; color: var(--ink-soft); }
 .statement { padding: 12px 14px; margin-bottom: 14px; border: 1px solid var(--rule); border-radius: 6px; font-size: 13px; display: grid; gap: 6px; }
 .statement-actions { display: flex; gap: 16px; }
 

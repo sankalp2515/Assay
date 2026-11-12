@@ -76,8 +76,11 @@ export function paymentSummary(operations = []) {
   ]);
   return { captured, refunded, pendingRefund, net: captured - refunded };
 }
-export const readableState = (state = "UNKNOWN") =>
-  state.toLowerCase().replaceAll("_", " ");
+// Service words become sentence case for people: "NEEDS_REVIEW" reads "Needs review".
+export const readableState = (state = "UNKNOWN") => {
+  const text = String(state).toLowerCase().replaceAll("_", " ");
+  return text.charAt(0).toUpperCase() + text.slice(1);
+};
 export function usdMinor(value) {
   if (!/^\d{1,4}(\.\d{1,2})?$/.test(String(value)))
     throw Error("Enter a USD price with at most two decimal places.");

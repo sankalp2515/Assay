@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PayPalLogo } from "./PayPalLogo.jsx";
+import { resetDemo } from "../demo/simulator.js";
 import {
   CompassIcon,
   SquaresFourIcon,
@@ -99,6 +100,9 @@ const TITLES = {
   dashboard: "Dashboard",
   signup: "Create account",
   signin: "Sign in",
+  "checkout-return": "Back from PayPal",
+  "checkout-cancel": "PayPal closed",
+  demo: "Walkthrough",
   privacy: "Privacy and retention",
 };
 const CASE_TITLES = {
@@ -106,6 +110,7 @@ const CASE_TITLES = {
   analysis: "AI analysis",
   settlement: "Settlement",
   record: "Resolution record",
+  timeline: "Recovery window",
 };
 
 export function ProductShell({
@@ -123,7 +128,7 @@ export function ProductShell({
   const parts = path.split("/").filter(Boolean);
   const current = parts[0] || "batches";
   const sub = current === "batches" && batchId ? parts[2] || "" : null;
-  const pageName = sub !== null ? CASE_TITLES[sub] || "Investigation" : TITLES[current] || "Assay";
+  const pageName = sub !== null ? CASE_TITLES[sub] || "Investigation" : TITLES[current] || "Page not found";
   useEffect(() => {
     document.title = `${pageName} · Assay`;
   }, [pageName]);
@@ -158,9 +163,9 @@ export function ProductShell({
             Delivery verified by <Mark size={14} /> Assay
           </span>
           {!session && caseId && (
-            <a className="text-link" href={`#/batches/${caseId}`}>
+            <a className="btn btn-outline btn-sm" href={`#/batches/${caseId}`}>
               <ArrowLeftIcon size={14} aria-hidden="true" />
-              Merchant workspace
+              Back to the merchant workspace
             </a>
           )}
           {session?.demo && (
@@ -196,7 +201,7 @@ export function ProductShell({
   const workspace = [
     item("/start", "Start here", CompassIcon, current === "start" || current === "signup"),
     item("/batches", "Command center", SquaresFourIcon, (current === "batches" && !batchId) || current === "new"),
-    item(`/batches/${caseId}`, "Investigation", ScanIcon, sub === "", !!caseId, caseId ? caseId.slice(0, 4) : null),
+    item(`/batches/${caseId}`, "Investigation", ScanIcon, sub === "", !!caseId),
     item(`/batches/${caseId}/timeline`, "Recovery window", ClockIcon, sub === "timeline", !!caseId),
     item(`/batches/${caseId}/analysis`, "AI analysis", SparkleIcon, sub === "analysis", !!caseId),
     item(`/batches/${caseId}/settlement`, "Settlement", ScalesIcon, sub === "settlement", !!caseId),
@@ -217,6 +222,7 @@ export function ProductShell({
         <Brand />
         <p className="eyebrow side-label">Merchant workspace</p>
         <nav className="side-nav" aria-label="Workspace">{workspace}</nav>
+        {!caseId && <p className="side-hint">Open a delivery from the command center to use the four delivery screens.</p>}
         <p className="eyebrow side-label">Records</p>
         <nav className="side-nav" aria-label="Records">{records}</nav>
         <p className="eyebrow side-label">What the customer sees</p>
@@ -225,6 +231,18 @@ export function ProductShell({
           <strong>{merchant}</strong>
           <span>{demo ? "Fictional AI-video studio" : "Single merchant · USD"}</span>
           <span className="side-status" data-env={envKind}>{environment}</span>
+          {demo && (
+            <button
+              className="text-link"
+              onClick={() => {
+                resetDemo();
+                window.location.hash = "/demo";
+                window.location.reload();
+              }}
+            >
+              Restart the walkthrough
+            </button>
+          )}
           {demo && import.meta.env.DEV && (
             <button className="text-link" onClick={connect}>Use local services</button>
           )}

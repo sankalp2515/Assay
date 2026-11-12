@@ -1,9 +1,13 @@
 import { Suspense, lazy, useEffect, useState } from "react";
-import { CaseWorkspace } from "./case/CaseWorkspace.jsx";
-import { BuyerDelivery } from "./buyer/BuyerDelivery.jsx";
 import { PayPalButton, paypalSdkUrl } from "./buyer/PayPalButton.jsx";
-import { Signup, Start } from "./start/Start.jsx";
 import { Landing } from "./landing/Landing.jsx";
+
+// The public page loads first; each workspace area loads when it is opened.
+const named = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })));
+const CaseWorkspace = named(() => import("./case/CaseWorkspace.jsx"), "CaseWorkspace");
+const BuyerDelivery = named(() => import("./buyer/BuyerDelivery.jsx"), "BuyerDelivery");
+const Start = named(() => import("./start/Start.jsx"), "Start");
+const Signup = named(() => import("./start/Start.jsx"), "Signup");
 
 // AG Studio is large; it loads only when the dashboard is opened.
 const Dashboard = lazy(() => import("./ops/Dashboard.jsx"));
@@ -41,7 +45,7 @@ import {
 import { coarseStations, deliveryStage, filterDeliveries } from "./ui/delivery-view.js";
 import { ProofLine } from "./ui/ProofLine.jsx";
 import { ProductShell } from "./ui/ProductShell.jsx";
-import { Chip, Reference } from "./ui/kit.jsx";
+import { Chip, Reference, stamp } from "./ui/kit.jsx";
 import { PayPalLogo } from "./ui/PayPalLogo.jsx";
 
 const OP_TONE = {
@@ -123,8 +127,6 @@ function Reading({ reading }) {
   );
 }
 
-const stamp = (value) =>
-  value ? new Date(value).toLocaleString() : "Not recorded";
 const rootFor = (id) => `/v1/batches/${id}`;
 function navigate(path) {
   window.location.hash = path;
@@ -153,12 +155,9 @@ function useData(load, keys = []) {
   }, [...keys, revision]);
   return { ...result, reload: () => reload((n) => n + 1) };
 }
+const STATUS_TONE = { warning: "unknown", success: "confirmed", neutral: "neutral" };
 function Status({ children, tone = "neutral" }) {
-  return (
-    <span className="state-label" data-tone={tone}>
-      {children}
-    </span>
-  );
+  return <Chip tone={STATUS_TONE[tone] || tone}>{children}</Chip>;
 }
 function ErrorBox({ error }) {
   if (error?.status === 401)
@@ -231,6 +230,7 @@ function Facts({ items }) {
     </dl>
   );
 }
+const HELD_STATES = new Set(["AUTHORIZED", "RUNNING", "WAITING_FOR_AI", "INVESTIGATED", "READY_FOR_REVIEW", "SETTLEMENT_REQUESTED", "CLAIMED"]);
 const STAGE_TONE = { attention: "ai", active: "pending", closed: "confirmed" };
 function BatchQueue({ demo, connect, payments = false }) {
   const [cursor, setCursor] = useState("");
@@ -247,7 +247,11 @@ function BatchQueue({ demo, connect, payments = false }) {
   const items = data.data?.items || [];
   const attention = items.filter((b) => deliveryStage(b.state).group === "attention");
   const open = items.filter((b) => deliveryStage(b.state).group !== "closed");
-  const heldOpen = open.reduce((n, b) => n + b.ceiling_minor, 0);
+  // Money is never added across currencies: one total only when every open hold shares one.
+  // Only states that follow a confirmed authorization count as held.
+  const held = open.filter((b) => HELD_STATES.has(b.state));
+  const heldCurrencies = [...new Set(held.map((b) => b.currency || "USD"))];
+  const heldOpen = heldCurrencies.length === 1 ? held.reduce((n, b) => n + b.ceiling_minor, 0) : 0;
   const first = attention[0] || open[0];
   return (
     <Page
@@ -278,7 +282,7 @@ function BatchQueue({ demo, connect, payments = false }) {
               New delivery
             </ButtonLink>
             <a className="btn btn-proof btn-lg" href={`#/batches/${first.id}`}>
-              Review {first.title || first.id.slice(0, 8)}
+              Review {first.title || "the next delivery"}
               <ArrowSquareOutIcon size={15} aria-hidden="true" />
             </a>
           </>
@@ -294,18 +298,18 @@ function BatchQueue({ demo, connect, payments = false }) {
         <dl className="metrics">
           <div data-tone="broken">
             <dt className="eyebrow">Open</dt>
-            <dd><span className="display">{open.length}</span> paid {open.length === 1 ? "delivery" : "deliveries"}</dd>
+            <dd><span className="display">{open.length}</span> {open.length === 1 ? "delivery" : "deliveries"}</dd>
             <p className="num">not yet settled</p>
           </div>
           <div data-tone="inferred">
             <dt className="eyebrow">Decide</dt>
             <dd><span className="display">{attention.length}</span> need your review</dd>
-            <p className="num">{attention.slice(0, 2).map((b) => b.title || b.id.slice(0, 8)).join(" · ") || "nothing waiting"}</p>
+            <p className="num">{attention.slice(0, 2).map((b) => b.title || `Untitled ${b.id.slice(0, 8)}`).join(" · ") || "nothing waiting"}</p>
           </div>
           <div data-tone="pending">
             <dt className="eyebrow">Money</dt>
-            <dd><span className="display">{money(heldOpen)}</span> held</dd>
-            <p className="num">authorized in PayPal, not captured</p>
+            <dd><span className="display">{heldCurrencies.length > 1 ? "Mixed" : money(heldOpen, heldCurrencies[0])}</span> held</dd>
+            <p className="num">{heldCurrencies.length > 1 ? `${heldCurrencies.join(", ")}: not added together` : held.length ? "authorized in PayPal, not captured" : "no authorization is open"}</p>
           </div>
           <div data-tone="verified">
             <dt className="eyebrow">Proof</dt>
@@ -362,12 +366,12 @@ function BatchQueue({ demo, connect, payments = false }) {
                         return (
                           <tr key={b.id}>
                             <th scope="row">
-                              <a href={`#${target}`}>{b.title || `Video batch ${b.id.slice(0, 8)}`}</a>
+                              <a href={`#${target}`}>{b.title || `Untitled delivery ${b.id.slice(0, 8)}`}</a>
                               <span className="num">{b.id.slice(0, 8)} · <time dateTime={b.created_at}>{new Date(b.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</time></span>
                             </th>
                             <td>{b.units.length} {b.units.length === 1 ? "clip" : "clips"} at {money(b.units[0]?.price_minor || 0, b.currency)}</td>
                             <td><ProofLine stations={coarseStations(b.state)} size="mini" /></td>
-                            <td className="num">{money(b.ceiling_minor, b.currency)}<span>{stage.group === "closed" ? "ceiling" : "ceiling, not a charge"}</span></td>
+                            <td className="num">{money(b.ceiling_minor, b.currency)}<span>{stage.group === "closed" ? "ceiling" : HELD_STATES.has(b.state) ? "held, not a charge" : "ceiling, nothing held"}</span></td>
                             <td><Chip tone={STAGE_TONE[stage.group] || "pending"}>{stage.label}</Chip></td>
                             <td><a className="text-link" href={`#${target}`}>{payments ? "Payments" : stage.action}</a></td>
                           </tr>
@@ -457,8 +461,9 @@ function NewBatch({ session }) {
   }
   return (
     <Page
-      title="Create a delivery"
-      description="Agree on the work and the payment ceiling before the buyer authorizes it."
+      eyebrow="Command center · New delivery"
+      title={<>Agree the work, <em>then the ceiling.</em></>}
+      description="Set the clips, the fixed price and the most the buyer can be charged. The buyer authorizes that ceiling with PayPal before any work is billed."
       action={<ButtonLink to="/batches">Back to deliveries</ButtonLink>}
     >
       <div className="agreement-editor">
@@ -497,7 +502,7 @@ function NewBatch({ session }) {
                 maxLength="2000"
                 rows="4"
                 required
-                placeholder="Describe the intended batch for the provider job."
+                placeholder="Describe the clips the provider will be asked to make."
               />
               <span className="field-help" id="production-brief-help">
                 For the provider job. Buyer billing uses the fixed technical
@@ -507,7 +512,7 @@ function NewBatch({ session }) {
           </section>
           <section className="editor-section">
             <div className="section-heading">
-              <h2>Buyer & pricing</h2>
+              <h2>Buyer and pricing</h2>
               <p>
                 The buyer reviews these fixed prices before authorizing the
                 ceiling.
@@ -579,7 +584,7 @@ function NewBatch({ session }) {
                 <dd>H.264, at least 720px high</dd>
               </div>
               <div>
-                <dt>Length & size</dt>
+                <dt>Length and size</dt>
                 <dd>4-10 seconds, up to 25 MiB per clip</dd>
               </div>
               <div>
@@ -619,7 +624,7 @@ function NewBatch({ session }) {
               className="primary"
               disabled={busy || directory.loading || !!directory.error}
             >
-              {busy ? "Creating agreement..." : "Create agreement"}
+              {busy ? "Creating agreement…" : "Create agreement"}
             </button>
           </div>
         </form>
@@ -639,7 +644,7 @@ function NewBatch({ session }) {
               <dt>
                 {Number.isInteger(estimate.units) && estimate.units > 0
                   ? estimate.units
-                  : "--"}{" "}
+                  : "—"}{" "}
                 {estimate.units === 1 ? "clip" : "clips"}
               </dt>
               <dd>
@@ -652,9 +657,9 @@ function NewBatch({ session }) {
           <div className="preview-total">
             <span>Maximum authorization</span>
             <strong>
-              {estimate.ceiling !== null ? money(estimate.ceiling) : "--"}
+              {estimate.ceiling !== null ? money(estimate.ceiling) : "—"}
             </strong>
-            <span>USD - PayPal authorization ceiling</span>
+            <span>USD · PayPal authorization ceiling</span>
           </div>
           <p className="preview-explanation">
             This is a ceiling, not the final charge. The final capture includes
@@ -770,8 +775,9 @@ function Agreement({ id, demo, session }) {
   }
   return (
     <Page
-      title="Your delivery agreement"
-      description="Review the deliverables and temporary hold before continuing to PayPal."
+      eyebrow="Your delivery · Agreement"
+      title={<>Agree the clips, <em>then authorize the hold.</em></>}
+      description="Read what you will receive and the most you can be charged. PayPal holds that amount; you are charged only for clips you can open."
     >
       <Loading resource={resource}>
         {({ batch: b, financial: f, paypal }) => {
@@ -790,14 +796,16 @@ function Agreement({ id, demo, session }) {
                 </a>
               )}
               <button className="secondary" onClick={check} disabled={busy || !b.consented_at}>
-                {f.environment === "fixture" ? "Confirm simulated fixture authorization" : "I approved in PayPal — check authorization"}
+                {f.environment === "fixture" ? "Confirm the simulated authorization" : "I approved in PayPal. Check the authorization"}
               </button>
             </>
           );
           return (
           <div className="two-column">
             <section className="document-panel">
-              <Status>{f.environment || "Environment unavailable"}</Status>
+              <span className="tag-env" data-env={f.environment === "sandbox" ? "sandbox" : "fixture"}>
+                {f.environment === "sandbox" ? "PayPal Sandbox" : f.environment === "fixture" ? "Test fixtures, not PayPal" : f.environment === "demo" ? "Illustrative walkthrough" : "Environment unverified"}
+              </span>
               <h2 className="buyer-agreement-title">
                 {b.title || "Video delivery agreement"}
               </h2>
@@ -810,7 +818,7 @@ function Agreement({ id, demo, session }) {
               </p>
               <Facts
                 items={[
-                  ["Batch", b.id],
+                  ["Delivery reference", <Reference value={b.id} label="delivery reference" />],
                   [
                     "Deliverables",
                     `${b.units.length} clips at ${money(b.units[0]?.price_minor || 0, b.currency)} each`,
@@ -823,8 +831,8 @@ function Agreement({ id, demo, session }) {
                     "H.264 · height ≥720px · 4–10 seconds · ≤25 MiB",
                   ],
                   [
-                    "Contract version",
-                    b.contract_hash || "Illustrative agreement",
+                    "Agreement version",
+                    b.contract_hash ? <Reference value={b.contract_hash} label="agreement version" /> : "Illustrative agreement",
                   ],
                 ]}
               />
@@ -890,7 +898,7 @@ function Agreement({ id, demo, session }) {
                   )}
                   {f.environment === "fixture" && (
                     <p className="flow-notice">
-                      Fixture only: the next check uses simulated buyer
+                      Test fixtures: the next check uses a simulated buyer
                       approval. No PayPal website or real payment is involved.
                     </p>
                   )}
@@ -981,9 +989,10 @@ function Tasks({ id }) {
   }
   return (
     <Page
-      title="Original tasks & files"
-      description="Correlate an existing provider task, then preserve its original output. No new video generation is submitted."
-      action={<ButtonLink to={`/batches/${id}`}>Back to batch</ButtonLink>}
+      eyebrow="Delivery · Provider tasks"
+      title={<>Every clip, <em>and the job that made it.</em></>}
+      description="Match each clip to the provider task that already ran, then archive its original file. Nothing here asks the provider for a new render."
+      action={<ButtonLink to={`/batches/${id}`}>Back to the investigation</ButtonLink>}
     >
       <ErrorBox error={error} />
       {notice && (
@@ -994,6 +1003,11 @@ function Tasks({ id }) {
       <Loading resource={data}>
         {({ batch: b, review: r }) => (
           <>
+            <section className="sheet task-sheet" aria-labelledby="tasks-title">
+            <div className="sheet-head">
+              <h2 id="tasks-title">{b.title || "Untitled delivery"} · {b.units.length} {b.units.length === 1 ? "clip" : "clips"}</h2>
+              <span className="source">provider and archive records</span>
+            </div>
             <div className="unit-list">
               {b.units.map((u, i) => {
                 const attempts = r.attempts.filter((a) => a.unit_id === u.id),
@@ -1002,20 +1016,18 @@ function Tasks({ id }) {
                   <article className="unit-row" key={u.id}>
                     <h2>Clip {String(i + 1).padStart(2, "0")}</h2>
                     <p>
-                      {money(u.price_minor)} customer liability if eligible ·
-                      Provider cost: not reported
+                      {money(u.price_minor, b.currency)} billable if the buyer can open it ·
+                      Provider cost not reported
                     </p>
                     {!attempts.length && (
-                      <Status>No original task attached</Status>
+                      <Status>No provider task on record</Status>
                     )}
                     {attempts.map((a) => (
                       <div key={a.id}>
-                        <Status>{readableState(a.state)}</Status>
+                        <Status tone={a.state === "SUCCEEDED" ? "confirmed" : a.state === "FAILED" ? "failed" : "pending"}>{readableState(a.state)}</Status>
                         <p>
-                          Original task:{" "}
-                          <code>
-                            {a.provider_task_id || "Unknown — do not resubmit"}
-                          </code>
+                          Provider task{" "}
+                          {a.provider_task_id ? <Reference value={a.provider_task_id} label="provider task" /> : "unknown. Do not resubmit."}
                         </p>
                         <button
                           className="secondary"
@@ -1037,15 +1049,16 @@ function Tasks({ id }) {
                     ))}
                     {files.map((f) => (
                       <p key={f.id}>
-                        Archive: {readableState(f.state)} ·{" "}
-                        {f.published ? "Published to buyer" : "Not published"} ·
-                        Retention ends {stamp(f.retention_until)}
+                        Archived copy: {readableState(f.state).toLowerCase()} ·{" "}
+                        {f.published ? "published to the buyer" : "not published"} ·
+                        kept until {stamp(f.retention_until)}
                       </p>
                     ))}
                   </article>
                 );
               })}
             </div>
+            </section>
             <form className="flow-form" onSubmit={attach}>
               <h2>Attach an existing task</h2>
               <label>
@@ -1055,7 +1068,7 @@ function Tasks({ id }) {
                     .filter((u) => !r.attempts.some((a) => a.unit_id === u.id))
                     .map((u) => (
                       <option value={u.id} key={u.id}>
-                        Clip {b.units.indexOf(u) + 1}
+                        Clip {String(b.units.indexOf(u) + 1).padStart(2, "0")}
                       </option>
                     ))}
                 </select>
@@ -1210,8 +1223,9 @@ function Payments({ id, role }) {
   }
   return (
     <Page
-      title="Payment record"
-      description="An authorization, a completed charge and a refund are separate events."
+      eyebrow="Records · Payments"
+      title={<>The hold, the charge and any refund, <em>kept apart.</em></>}
+      description="An authorization is a hold. A capture is the one charge. A refund returns part of a capture. Each is read back from the payment record and shown on its own line."
       action={
         <ButtonLink to={role === "buyer" ? `/buyer/${id}` : `/batches/${id}`}>
           Back to delivery
@@ -1240,27 +1254,27 @@ function Payments({ id, role }) {
                 </div>
                 <dl className="payment-figures">
                   <div data-tone="authorized">
-                    <dt>Authorized hold</dt>
+                    <dt>{f.authorization?.state === "AUTHORIZED" ? "Authorized hold" : "Agreed ceiling"}</dt>
                     <dd>{money(b.ceiling_minor, b.currency)}</dd>
                     <Chip tone={f.authorization?.state === "AUTHORIZED" ? "authorized" : "neutral"} quiet>
                       {f.authorization
                         ? `${readableState(f.authorization.state)}, not a charge`
-                        : "Not confirmed"}
+                        : "No hold confirmed yet"}
                     </Chip>
                   </div>
                   <div data-tone="confirmed">
                     <dt>Captured</dt>
-                    <dd>{money(totals.captured)}</dd>
+                    <dd>{money(totals.captured, b.currency)}</dd>
                     <Chip tone={totals.captured ? "confirmed" : "neutral"} quiet>
                       {totals.captured ? "Confirmed by read-back" : "Nothing captured"}
                     </Chip>
                   </div>
                   <div data-tone="refunded">
                     <dt>Refunded</dt>
-                    <dd>{money(totals.refunded)}</dd>
+                    <dd>{money(totals.refunded, b.currency)}</dd>
                     <Chip tone={totals.pendingRefund ? "pending" : totals.refunded ? "refunded" : "neutral"} quiet>
                       {totals.pendingRefund
-                        ? `${money(totals.pendingRefund)} more pending`
+                        ? `${money(totals.pendingRefund, b.currency)} more pending`
                         : totals.refunded
                           ? "Against the original capture"
                           : "No refunds"}
@@ -1268,7 +1282,7 @@ function Payments({ id, role }) {
                   </div>
                   <div data-tone="neutral">
                     <dt>Net collected</dt>
-                    <dd>{money(totals.net)}</dd>
+                    <dd>{money(totals.net, b.currency)}</dd>
                     <Chip tone="neutral" quiet>
                       {totals.captured
                         ? `${money(b.ceiling_minor - totals.captured, b.currency)} never taken`
@@ -1300,16 +1314,16 @@ function Payments({ id, role }) {
                     <div>
                       <h3>
                         {op.kind === "VOID"
-                          ? "Authorization release"
-                          : `${readableState(op.kind)} · ${money(op.amount_minor)}`}{" "}
+                          ? "Authorization released"
+                          : `${readableState(op.kind)} · ${money(op.amount_minor, b.currency)}`}{" "}
                         <Chip tone={opTone(op)}>{readableState(op.state)}</Chip>
                       </h3>
                       <p>
-                        Created {stamp(op.created_at)} · Last update{" "}
+                        Created {stamp(op.created_at)} · last update{" "}
                         {stamp(op.updated_at)}
                       </p>
                       <p className="transaction-refs">
-                        PayPal reference{" "}
+                        {f.environment === "sandbox" ? "PayPal reference" : "Payment reference"}{" "}
                         <Reference value={op.provider_id || op.id} />
                         {op.capture_id && (
                           <>
@@ -1352,14 +1366,13 @@ function Payments({ id, role }) {
                     the refund against the original capture and checks existing
                     remedies.
                   </p>
-                  <form onSubmit={reviewRefund} className="flow-form">
-                    {!refundable.size && (
-                      <p className="plain-note">
-                        No captured clips are currently available for another
-                        refund. Refresh the payment record if a remedy is still
-                        pending.
-                      </p>
-                    )}
+                  {!refundable.size && (
+                    <p className="plain-note">
+                      No captured clip is available for another refund. Refresh
+                      the payment record if a refund is still pending.
+                    </p>
+                  )}
+                  <form onSubmit={reviewRefund} className="flow-form" hidden={!refundable.size}>
                     <fieldset>
                       <legend>Affected clips</legend>
                       {b.units
@@ -1367,8 +1380,8 @@ function Payments({ id, role }) {
                         .map((u) => (
                           <label key={u.id} className="check-label">
                             <input type="checkbox" name="units" value={u.id} />
-                            Clip {b.units.indexOf(u) + 1} ·{" "}
-                            {money(u.price_minor)}
+                            Clip {String(b.units.indexOf(u) + 1).padStart(2, "0")} ·{" "}
+                            {money(u.price_minor, b.currency)}
                           </label>
                         ))}
                     </fieldset>
@@ -1392,14 +1405,14 @@ function Payments({ id, role }) {
                   {preview && (
                     <div className="refund-preview">
                       <h3>
-                        Refund {money(preview.amount_minor)} to the original
+                        Refund {money(preview.amount_minor, b.currency)} to the original
                         capture
                       </h3>
                       <p>
-                        Capture: <code>{preview.capture_id}</code>
+                        Original capture <Reference value={preview.capture_id} label="PayPal capture" />
                       </p>
                       <p>
-                        {preview.unit_ids.length} clips · {preview.reason}
+                        {preview.unit_ids.length} {preview.unit_ids.length === 1 ? "clip" : "clips"} · {preview.reason}
                       </p>
                       <p>
                         {Date.parse(preview.expires_at) <= clock
@@ -1420,28 +1433,34 @@ function Payments({ id, role }) {
                           }
                           onClick={approveRefund}
                         >
-                          Approve {money(preview.amount_minor)} refund
+                          Approve {money(preview.amount_minor, b.currency)} refund
                         </button>
                       </Actions>
                     </div>
                   )}
                 </section>
               )}
-              {!["CLOSED", "CLAIMED", "SETTLEMENT_REQUESTED"].includes(
+              {b.state === "CANCEL_REQUESTED" && (
+                <p className="flow-notice" role="status">
+                  Cancellation requested. This delivery is closed once the
+                  service confirms that no payment is outstanding.
+                </p>
+              )}
+              {!["CLOSED", "CLAIMED", "SETTLEMENT_REQUESTED", "CANCEL_REQUESTED"].includes(
                 b.state,
               ) && (
                 <section className="document-panel">
-                  <h2>Cancel this batch</h2>
+                  <h2>Cancel this delivery</h2>
                   <p>
-                    Requests safe cancellation of the current agreement and
-                    authorization. If dispatch has begun, reconciliation must
-                    determine the outcome.
+                    Asks to cancel the agreement and release the PayPal hold. If
+                    a payment request is already on its way, its outcome is
+                    checked with PayPal first.
                   </p>
                   <details>
                     <summary>Review cancellation</summary>
                     <p>
-                      This action ends normal batch work. Existing files and
-                      financial history are preserved.
+                      This ends work on the delivery. Existing files and the
+                      payment history are kept.
                     </p>
                     <button
                       className="secondary"
@@ -1506,14 +1525,16 @@ function Support({ id, role, demo }) {
   }
   return (
     <Page
-      title="Delivery support"
-      description="Keep the issue and its resolution attached to the right batch."
+      eyebrow={role === "buyer" ? "Your delivery · Tell the studio" : "Records · Buyer messages"}
+      title={role === "buyer" ? <>Something wrong? <em>Tell the studio.</em></> : <>What the buyer said, <em>and what the records say.</em></>}
+      description={role === "buyer" ? "Write what happened in your own words. Your message is checked against the delivery and payment records for this order." : "Each message is read by AI for which clips it is about. The answer comes from the delivery and payment records, never from the AI."}
+      action={<ButtonLink to={role === "buyer" ? `/buyer/${id}` : `/batches/${id}`}>{role === "buyer" ? "Back to your delivery" : "Back to the investigation"}</ButtonLink>}
     >
       <div className="two-column">
         <section className="document-panel">
-          <h2>Report a concern</h2>
+          <h2>{role === "buyer" ? "Your message" : "Record a message"}</h2>
           <p>
-            Batch: <code>{id}</code>
+            Delivery <Reference value={id} label="delivery reference" />
           </p>
           <p>
             For creative concerns, explain what did not match your brief.
@@ -1528,8 +1549,8 @@ function Support({ id, role, demo }) {
           )}
           {demo ? (
             <p>
-              Demo mode has no real support inbox. Connect services and open a
-              batch to record an issue.
+              The walkthrough has no message inbox. Connect services and open a
+              delivery to record a message.
             </p>
           ) : (
             <form className="flow-form" onSubmit={submit}>
@@ -1558,18 +1579,18 @@ function Support({ id, role, demo }) {
               </button>
               <p className="plain-note">
                 Recorded inside this application. No email has been sent and no
-                response time is promised. Support records follow the batch
-                retention policy.
+                response time is promised. Messages are kept as long as the
+                delivery's files.
               </p>
             </form>
           )}
         </section>
         <section className="document-panel">
-          <h2>Issues & resolutions</h2>
+          <h2>Messages and answers</h2>
           <Loading resource={data}>
             {({ items }) => (
               <>
-                {!items.length && <p>No issues recorded.</p>}
+                {!items.length && <p>No messages recorded for this delivery.</p>}
                 {items.map((c) => (
                   <article className="support-item" key={c.id}>
                     <h3>
@@ -1619,8 +1640,9 @@ function SupportInbox({ demo }) {
   );
   return (
     <Page
-      title="Support inbox"
-      description="Open delivery issues awaiting merchant review. No external email notifications are implied."
+      eyebrow="Records · Buyer messages"
+      title={<>What buyers told you, <em>waiting for an answer.</em></>}
+      description="Open messages across your deliveries. They are recorded here only; no email is sent."
     >
       <Loading resource={r}>
         {({ items }) => (
@@ -1628,8 +1650,8 @@ function SupportInbox({ demo }) {
             {!items.length ? (
               <p>
                 {demo
-                  ? "Connect services and open a batch to record a real issue."
-                  : "No open issues recorded. Buyers can report concerns from their delivery."}
+                  ? "The walkthrough has no inbox. Connect services and open a delivery to record a message."
+                  : "No open messages. Buyers can write to you from their delivery page."}
               </p>
             ) : (
               items.map((c) => (
@@ -1637,11 +1659,11 @@ function SupportInbox({ demo }) {
                   <h2>{readableState(c.category)}</h2>
                   <p>{c.message}</p>
                   <p>
-                    Created {stamp(c.created_at)} · Batch{" "}
-                    {c.batch_id.slice(0, 8)}
+                    Received {stamp(c.created_at)} · delivery{" "}
+                    <Reference value={c.batch_id} label="delivery reference" />
                   </p>
                   <ButtonLink to={`/support/${c.batch_id}`}>
-                    Review issue & respond
+                    Read and answer
                   </ButtonLink>
                 </article>
               ))
@@ -1659,8 +1681,9 @@ function Activity({ id, role }) {
   );
   return (
     <Page
-      title="Batch activity"
-      description="Durable changes recorded for this agreement."
+      eyebrow="Delivery · Activity"
+      title={<>Every recorded change, <em>in order.</em></>}
+      description="Changes to this agreement as the service recorded them."
       action={
         <ButtonLink to={role === "buyer" ? `/buyer/${id}` : `/batches/${id}`}>
           Back to delivery
@@ -1681,8 +1704,8 @@ function Activity({ id, role }) {
               <p>No recorded changes.</p>
             )}
             <p className="plain-note">
-              This agreement journal is scoped to Commerce. Provider task and
-              payment details are available in their corresponding views.
+              This journal covers the agreement. Provider tasks and payments
+              have their own records.
             </p>
           </div>
         )}
@@ -1732,8 +1755,9 @@ function Connections({ demo, connect, session }) {
   }
   return (
     <Page
-      title="Workspace settings"
-      description="Your workspace, connected services and delivery terms."
+      eyebrow="Records · Workspace"
+      title={<>Your workspace, <em>and what it is connected to.</em></>}
+      description="The merchant, the terms every agreement starts from, and the services that hold the records."
     >
       <div
         className="settings-tabs"
@@ -2034,6 +2058,7 @@ function Connections({ demo, connect, session }) {
     </Page>
   );
 }
+const SERVICE_NAMES = { commerce: "Agreements", provider: "Video provider", delivery: "File delivery", investigation: "AI investigation", payments: "PayPal payments" };
 function Operations() {
   const r = useData(() => request("/v1/operations/overview"), []),
     [error, setError] = useState(null),
@@ -2062,8 +2087,9 @@ function Operations() {
   }
   return (
     <Page
-      title="Operations"
-      description="Inspect queue health and control payment dispatch without changing financial truth."
+      eyebrow="Workspace · Operations"
+      title={<>What is queued, <em>and whether payments may go out.</em></>}
+      description="Queue health for each service, and one switch that pauses new payment requests. Pausing never changes a recorded payment."
     >
       <ErrorBox error={error} />
       {notice && (
@@ -2079,7 +2105,7 @@ function Operations() {
             {d.services.map((service) => (
               <article className="connection-row" key={service.service}>
                 <div>
-                  <h3>{readableState(service.service)}</h3>
+                  <h3>{SERVICE_NAMES[service.service] || readableState(service.service)}</h3>
                   {service.reachable === false ? (
                     <p>
                       Unavailable. Preserve unresolved operations and
@@ -2094,7 +2120,7 @@ function Operations() {
                       </p>
                       {(service.queues || []).map((q) => (
                         <p key={q.state}>
-                          {readableState(q.state)}: {q.count} entries · Oldest{" "}
+                          {readableState(q.state)}: {q.count} {q.count === 1 ? "entry" : "entries"} · oldest{" "}
                           {stamp(q.oldest_created_at)}
                         </p>
                       ))}
@@ -2103,9 +2129,9 @@ function Operations() {
                       )}
                       {(service.dead_letters || []).map((job) => (
                         <p key={job.id}>
-                          Needs operator investigation: {job.id} ·{" "}
-                          {job.attempts} attempts · Target {job.target}. No
-                          automatic replay is offered.
+                          Needs a person: <Reference value={job.id} label="job" /> ·{" "}
+                          {job.attempts} attempts · target {job.target}. It is
+                          not replayed automatically.
                         </p>
                       ))}
                     </>
@@ -2114,8 +2140,8 @@ function Operations() {
               </article>
             ))}
             <p>
-              Review unresolved payment operations from their batch payment
-              record. Queue status alone is not proof of a payment outcome.
+              Check an unresolved payment from its delivery's payment record.
+              A queue count is not proof of a payment outcome.
             </p>
           </section>
         )}
@@ -2203,7 +2229,9 @@ export function Workspace() {
     ? "operator"
     : path.startsWith("/buyer/")
       ? "buyer"
-      : sessionStorage.getItem("pvd-preview-role") || "operator";
+      : ["signin", "privacy"].includes(parts[0]) || (["payments", "support"].includes(parts[0]) && !parts[1])
+        ? "operator"
+        : sessionStorage.getItem("pvd-preview-role") || "operator";
   const role = session?.role || localRole;
   useEffect(() => {
     if (import.meta.env.DEV && !session)
@@ -2356,29 +2384,33 @@ export function Workspace() {
     const batch = sessionStorage.getItem("pvd-checkout");
     screen = (
       <Page
+        eyebrow="Your delivery · PayPal"
         title={
           parts[0] === "checkout-cancel"
-            ? "PayPal approval was cancelled"
-            : "Welcome back from PayPal"
+            ? <>PayPal was closed. <em>Nothing was authorized.</em></>
+            : <>Back from PayPal. <em>One check left.</em></>
         }
-        description="A redirect does not confirm authorization or payment."
+        description="Coming back from PayPal does not confirm a hold or a charge. Our server checks the authorization with PayPal before anything is shown as authorized."
       >
         {batch ? (
           <ButtonLink to={`/buyer/${batch}/agreement`} primary>
             Check the original authorization
           </ButtonLink>
         ) : (
-          <p>
-            Open your original private batch link to check its authorization.
-          </p>
+          <section className="document-panel">
+            <p>
+              Open the private delivery link your studio sent you to check the authorization.
+            </p>
+          </section>
         )}
       </Page>
     );
   } else if (parts[0] === "signin")
     screen = (
       <Page
-        title="Sign in"
-        description="Your account determines which deliveries and actions you can access."
+        eyebrow="Assay · Sign in"
+        title={<>Sign in to <em>your workspace.</em></>}
+        description="Your account decides which deliveries you can open and what you can approve."
       >
         <section className="document-panel">
           <a
@@ -2395,8 +2427,8 @@ export function Workspace() {
             </Actions>
           )}
           <p>
-            For buyer access, return through the private batch link supplied by
-            the merchant.
+            Buying a delivery? Use the private delivery link your studio
+            sent you.
           </p>
         </section>
       </Page>
@@ -2404,8 +2436,9 @@ export function Workspace() {
   else if (parts[0] === "privacy")
     screen = (
       <Page
-        title="Privacy & retention"
-        description="Understand how this delivery is retained."
+        eyebrow="Assay · Privacy and retention"
+        title={<>What is kept, <em>and for how long.</em></>}
+        description="How files, prompts, payment references and messages are held for a delivery."
       >
         <section className="document-panel">
           <h2>Files and operational records</h2>
@@ -2423,12 +2456,12 @@ export function Workspace() {
           <h2>Support records</h2>
           <p>
             Describe issues without passwords, API keys or private links.
-            Support records follow the batch retention policy. Ask your merchant
-            about access, correction or retention concerns.
+            Messages are kept as long as the delivery's files. Ask your studio
+            about access, correction or retention.
           </p>
           <p className="plain-note">
-            Commercial policy review and a named support owner remain release
-            gates; this page does not assert legal certification.
+            This is a Sandbox build for evaluation. It describes how the
+            product handles data; it is not a legal privacy policy.
           </p>
         </section>
       </Page>
@@ -2436,10 +2469,14 @@ export function Workspace() {
   else
     screen = (
       <Page
-        title="Page not found"
-        description="This route does not identify a delivery."
+        eyebrow="Assay · Not found"
+        title={<>This page <em>is not on record.</em></>}
+        description="The address does not match a screen or a delivery. Nothing was changed."
       >
-        <ButtonLink to="/batches">Back to batches</ButtonLink>
+        <Actions>
+          <ButtonLink to="/batches" primary>Command center</ButtonLink>
+          <ButtonLink to="/start">Start here</ButtonLink>
+        </Actions>
       </Page>
     );
   if (
@@ -2482,7 +2519,17 @@ export function Workspace() {
           <ErrorBox error={connectionError} />
         </div>
       )}
-      {screen}
+      <Suspense
+        fallback={
+          <main id="main" className="case-page" aria-busy="true">
+            <div className="skeleton skeleton-title" />
+            <div className="skeleton skeleton-block" />
+            <p className="sr-only" role="status">Loading…</p>
+          </main>
+        }
+      >
+        {screen}
+      </Suspense>
     </ProductShell>
   );
 }

@@ -255,7 +255,7 @@ const EVENT_LABELS = {
   AWAITING_BUYER_APPROVAL: ["Agreement created", "Fixed units, prices and ceiling."],
   ACCEPTED: ["Buyer accepted the agreement", "Consent bound to the contract hash."],
   AUTHORIZING: ["PayPal authorization requested", ""],
-  AUTHORIZED: ["Batch authorized for work", ""],
+  AUTHORIZED: ["Delivery authorized for work", ""],
   RUNNING: ["Provider work started", ""],
   WAITING_FOR_AI: ["Investigation requested", ""],
   INVESTIGATED: ["Investigation adopted by the operator", ""],

@@ -2,9 +2,9 @@
 // Every step state is read from the delivery record; nothing here is assumed done.
 import { useEffect, useState } from "react";
 import { ArrowRightIcon, CheckIcon, CopyIcon, WarningIcon } from "@phosphor-icons/react";
-import { request, signup } from "../api.js";
+import { request, signup, demoLoginAvailable, LIVE_DEMO_HREF } from "../api.js";
 import { money } from "../domain.js";
-import { journeySteps } from "../ui/delivery-view.js";
+import { journeySteps, clipLinks } from "../ui/delivery-view.js";
 import "./start.css";
 import { withPayPal } from "../ui/PayPalLogo.jsx";
 
@@ -78,7 +78,12 @@ export function Start({ envKind, demo, openDemo, connect, canConnect, demoLogin 
   const id = chosen || open[0]?.id || list.items[0]?.id || "";
   const { batch, review, reread } = useBatch(id, envKind, demoLogin && role !== "buyer");
   const [provider, setProvider] = useState({ state: "idle", note: "" });
-  useEffect(() => setProvider({ state: "idle", note: "" }), [id]);
+  const [ownClips, setOwnClips] = useState("");
+  const links = clipLinks(ownClips);
+  useEffect(() => {
+    setProvider({ state: "idle", note: "" });
+    setOwnClips("");
+  }, [id]);
   const tasks = review?.attempts?.length || 0;
   const archived = review?.artifacts?.length || 0;
   const steps = batch
@@ -88,10 +93,13 @@ export function Start({ envKind, demo, openDemo, connect, canConnect, demoLogin 
     setProvider({ state: "running", note: "" });
     try {
       const out = await request(`/v1/demo/batches/${encodeURIComponent(id)}/simulate-provider`, {
-        body: {},
+        body: links.urls.length ? { clip_urls: links.urls } : {},
         intent: `demo-provider:${id}`,
       });
-      setProvider({ state: "archiving", note: out.label || "" });
+      setProvider({
+        state: "archiving",
+        note: [out.label, out.clips_from && `Clips: ${out.clips_from}.`, links.urls.length && "A link that fails Assay's checks appears as a quarantined file, not as a delivered clip."].filter(Boolean).join(" "),
+      });
       // Archiving runs in the background on the server; reread a few times.
       for (let i = 0; i < 12; i++) {
         await wait(2500);
@@ -131,6 +139,9 @@ export function Start({ envKind, demo, openDemo, connect, canConnect, demoLogin 
             <p><strong>{envTitle}.</strong> {envNote}</p>
           )}
           {demo && canConnect && <button className="btn btn-outline" onClick={connect}>Use connected services</button>}
+          {demo && !canConnect && demoLoginAvailable() && (
+            <a className="btn btn-proof" href={LIVE_DEMO_HREF}>{withPayPal("Run it live on PayPal Sandbox")}</a>
+          )}
           {!demo && <p className="start-here"><CheckIcon size={14} weight="bold" aria-hidden="true" />Connected. The steps below are live</p>}
         </article>
         <article className="sheet start-way">
@@ -197,10 +208,31 @@ export function Start({ envKind, demo, openDemo, connect, canConnect, demoLogin 
                       <span className="visually-hidden">{s.state === "done" ? ", done" : s.state === "next" ? ", next" : ", later"}</span>
                     </p>
                     <p>{s.detail}</p>
+                    {s.state === "next" && s.key === "provider" && provider.state === "idle" && (
+                      <details className="start-own">
+                        <summary>Use your own clips (optional)</summary>
+                        <label htmlFor="own-clips">Direct .mp4 links, one per line, up to three</label>
+                        <textarea
+                          id="own-clips"
+                          rows="3"
+                          spellCheck="false"
+                          autoComplete="off"
+                          placeholder="https://…/clip.mp4"
+                          value={ownClips}
+                          aria-describedby="own-clips-help"
+                          aria-invalid={links.error ? "true" : undefined}
+                          onChange={(e) => setOwnClips(e.target.value)}
+                        />
+                        <p id="own-clips-help" className="field-help">
+                          Your clip links are fetched and checked by Assay like provider output. Use direct .mp4 links. Leave this empty to use the pre-generated clips.
+                        </p>
+                        {links.error && <p className="inline-error" role="alert">{links.error}</p>}
+                      </details>
+                    )}
                   </div>
                   {s.state === "next" && s.key === "provider" ? (
-                    <button className="btn btn-proof" disabled={provider.state !== "idle"} onClick={runProvider}>
-                      {provider.state === "idle" ? s.action : `Archiving… ${archived} stored`}
+                    <button className="btn btn-proof" disabled={provider.state !== "idle" || !!links.error} onClick={runProvider}>
+                      {provider.state === "idle" ? (links.urls.length ? `Run it with ${links.urls.length === 1 ? "your clip" : `your ${links.urls.length} clips`}` : s.action) : `Archiving… ${archived} stored`}
                     </button>
                   ) : s.state === "next" ? (
                     <a className="btn btn-proof" href={stepHref(s, demoLogin, role)}>{s.action}<ArrowRightIcon size={14} aria-hidden="true" /></a>

@@ -36,7 +36,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #176b4a;
+  background: var(--proof);
   border-radius: 7px;
   flex: 0 0 28px;
 }
@@ -74,7 +74,7 @@
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #567d66;
+  background: var(--muted);
 }
 .product-rail {
   position: sticky;
@@ -133,12 +133,12 @@
   padding: 9px 11px;
   text-decoration: none;
   font-size: 13px;
-  color: #5b6e62;
+  color: var(--muted);
   border-radius: 6px;
 }
 .rail-nav a[aria-current="page"] {
   background: var(--paper-deep);
-  color: #1b573b;
+  color: var(--verified);
   font-weight: 550;
 }
 .rail-nav svg {
@@ -293,7 +293,7 @@
   align-items: center;
   font-size: 12px;
   line-height: 1.5;
-  color: #586c5f;
+  color: var(--muted);
   background: var(--paper-deep);
   border: 1px solid var(--rule);
   border-radius: 4px;
@@ -387,7 +387,7 @@
   max-width: 100%;
 }
 .flow-form ::placeholder {
-  color: #748077;
+  color: var(--muted);
   opacity: 1;
 }
 .flow-form textarea {
@@ -469,7 +469,7 @@
 .flow-error {
   background: var(--paper-deep);
   border-color: var(--rule);
-  color: #963f2f;
+  color: var(--broken-ink);
 }
 .flow-notice .flow-actions {
   margin: 12px 0 0;

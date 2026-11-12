@@ -15,13 +15,21 @@ export function setDemoMode(value) {
   demoMode = !!value;
 }
 export const isDemoMode = () => demoMode;
+let demoLoginOffered = false;
+export const demoLoginAvailable = () => demoLoginOffered;
+export const LIVE_DEMO_HREF = `/api/demo-login?as=operator&returnTo=${encodeURIComponent("/#/start")}`;
 export async function currentSession() {
   const res = await fetch("/api/session", {
     cache: "no-store",
     credentials: "same-origin",
   });
-  if (!res.ok || !res.headers.get("Content-Type")?.includes("application/json"))
+  if (!res.ok || !res.headers.get("Content-Type")?.includes("application/json")) {
+    // A signed-out visitor on a hosted Sandbox: the gateway says whether it offers a
+    // one-click demo workspace, so the Start page can link straight to it.
+    if (res.status === 401)
+      demoLoginOffered = (await res.json().catch(() => ({}))).demo_login === true;
     return null;
+  }
   gateway = await res.json();
   return gateway;
 }

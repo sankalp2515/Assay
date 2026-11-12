@@ -38,7 +38,7 @@ const PROVENANCE = {
 };
 
 export function titleOf(batch) {
-  return batch.title || `Video batch ${batch.id.slice(0, 8)}`;
+  return batch.title || `Untitled delivery ${batch.id.slice(0, 8)}`;
 }
 function downloadJson(name, value) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: "application/json" }));
@@ -554,6 +554,21 @@ function Analysis({ c, ctx, data, openRestore, canAct }) {
   );
 }
 
+/* The review is exact and short-lived. The bar shows how much of it is left; screen readers
+   hear it at the start and near the end, not every second. */
+function ExpiryLine({ expiresAt }) {
+  const left = Countdown({ expiresAt });
+  const [total] = useState(() => Math.max(1, left));
+  const spoken = left > 10 ? `This review expires in ${total} seconds.` : left > 0 ? "This review expires in less than 10 seconds." : "";
+  return (
+    <div className="expiry" data-urgent={left <= 10 || undefined}>
+      <p aria-hidden="true">This exact review expires in <strong className="num">{left}</strong> {left === 1 ? "second" : "seconds"}.{left <= 10 && " Approve now, or request a fresh one."}</p>
+      <span className="expiry-bar" aria-hidden="true"><span style={{ width: `${Math.min(100, (left / total) * 100)}%` }} /></span>
+      <p className="sr-only" role="status">{spoken}</p>
+    </div>
+  );
+}
+
 /* ---------- Settlement ---------- */
 function Settlement({ c, ctx, data, canAct, envKind }) {
   const { batch, units, finance, financials } = ctx;
@@ -655,7 +670,11 @@ function Settlement({ c, ctx, data, canAct, envKind }) {
             {c.error && <p className="inline-error" role="alert">{c.error}</p>}
             {settled ? (
               <>
-                <p className="outcome"><SealCheckIcon size={18} aria-hidden="true" />{finance.operation.kind === "VOID" ? "Authorization released. Nothing was charged." : `${fmt(totals.captured)} captured once.`}</p>
+                <div className="outcome" role="status">
+                  <SealCheckIcon size={26} weight="fill" aria-hidden="true" />
+                  <p className="display">{finance.operation.kind === "VOID" ? "Authorization released." : `${fmt(totals.captured)} captured once.`}</p>
+                  <p>{finance.operation.kind === "VOID" ? "Nothing was charged." : `Confirmed by PayPal read-back. ${fmt(batch.ceiling_minor - totals.captured)} was never taken.`}</p>
+                </div>
                 {statement?.statement && (
                   <div className="statement">
                     <p><strong>Per-clip delivery statement</strong> <Chip tone={statement.signed ? "confirmed" : "neutral"} quiet>{statement.signed ? "Signed" : statement.illustrative ? "Unsigned example" : "Draft"}</Chip></p>
@@ -675,7 +694,7 @@ function Settlement({ c, ctx, data, canAct, envKind }) {
               </>
             ) : preview && !expired ? (
               <>
-                <p className="expiry" role="status">This exact review expires in <Countdown expiresAt={preview.expires_at} /> seconds.</p>
+                <ExpiryLine expiresAt={preview.expires_at} />
                 <button className="btn btn-proof btn-lg approve" disabled={!!c.busy} onClick={() => c.approveSettlement()}>
                   {c.busy ? <><SpinnerGapIcon size={16} className="spin" aria-hidden="true" />{c.busy}…</> : preview.action === "VOID" ? "Approve release" : `Approve ${fmt(preview.amount_minor)} capture`}
                 </button>
@@ -773,7 +792,7 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
         <div className="state-card" role="alert">
           <WarningCircleIcon size={24} aria-hidden="true" />
           <h1>{c.loadError.status === 404 ? "This delivery was not found." : c.loadError.status === 403 ? "You don't have access to this delivery." : c.loadError.status === 401 ? "Your session expired." : "This delivery could not be loaded."}</h1>
-          <p>{c.loadError.status === 404 ? "It may belong to another workspace, or the local services were restarted and their test data reset." : c.loadError.message}</p>
+          <p>{c.loadError.status === 404 ? "The link may be mistyped, or the delivery belongs to another workspace. Open the command center to see the deliveries you can reach." : c.loadError.message}</p>
           <div className="state-actions">
             {c.loadError.status === 401 ? <a className="btn btn-proof" href="#/signin">Sign in</a> : <button className="btn btn-proof" onClick={c.retry}>Try again</button>}
             <a className="btn btn-outline" href="#/batches">Command center</a>
@@ -791,7 +810,7 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
       </main>
     );
   const { batch } = data;
-  if (["ACCEPTED", "AWAITING_BUYER_APPROVAL", "AUTHORIZING"].includes(batch.state) && data.artifacts.length === 0)
+  if (["ACCEPTED", "AWAITING_BUYER_APPROVAL", "AUTHORIZING"].includes(batch.state) && data.artifacts.length === 0 && view !== "timeline")
     return <AuthorizationHandoff error={c.error} batch={batch} title={titleOf(batch)} role="operator" busy={!!c.busy} onRefresh={c.refresh} />;
 
   const ctx = derived;

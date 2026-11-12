@@ -11,17 +11,17 @@
   font-size: 14px;
 }
 .state-label[data-tone="neutral"] {
-  color: #52615b;
+  color: var(--muted);
   background: var(--paper-deep);
   border-color: var(--paper-deep);
 }
 .state-label[data-tone="warning"] {
-  color: #805710;
+  color: var(--inferred-ink);
   background: var(--paper-deep);
   border-color: var(--rule);
 }
 .state-label[data-tone="success"] {
-  color: #17613e;
+  color: var(--verified);
   background: var(--paper-deep);
   border-color: var(--rule);
 }
@@ -51,7 +51,7 @@
   font-size: 13px;
 }
 .filter-control[aria-pressed="true"] {
-  background: white;
+  background: var(--card);
   border-color: var(--line);
   color: var(--ink);
   font-weight: 550;
@@ -68,7 +68,7 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
-  background: white;
+  background: var(--card);
   padding: 0 12px;
   min-height: 40px;
   border-radius: 6px;
@@ -92,7 +92,7 @@
 .delivery-register {
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: white;
+  background: var(--card);
   overflow: hidden;
 }
 .delivery-register-head,
@@ -143,7 +143,7 @@
   background: var(--paper-deep);
   border: 1px solid var(--paper-deep);
   border-radius: 7px;
-  color: #6b8273;
+  color: var(--muted);
 }
 .delivery-title {
   color: var(--ink);
@@ -212,7 +212,7 @@
 }
 .delivery-empty > svg {
   margin: 0 auto 18px;
-  color: #6c8474;
+  color: var(--muted);
 }
 .delivery-empty h2 {
   font-size: 18px;
@@ -239,7 +239,7 @@
 }
 .delivery-principles svg {
   flex-shrink: 0;
-  color: #627c6c;
+  color: var(--muted);
   margin-top: 3px;
 }
 .delivery-principles strong {
@@ -300,7 +300,7 @@
 }
 .settings-facts {
   margin: 22px 0 0;
-  background: white;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 0 20px;
@@ -350,7 +350,7 @@
   font-size: 13px;
   line-height: 1.8;
   margin: 10px 0 16px;
-  color: #566e5f;
+  color: var(--muted);
 }
 .settings-context button {
   font-size: 13px;
@@ -399,7 +399,7 @@
 }
 .connection-environment-note {
   font-size: 13px;
-  color: #72591c;
+  color: var(--inferred-ink);
   background: var(--paper-deep);
   border: 1px solid var(--rule);
   padding: 12px 16px;
@@ -410,7 +410,7 @@
 .service-register {
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: white;
+  background: var(--card);
   padding: 0 24px;
 }
 .service-entry {
@@ -431,11 +431,11 @@
   border-radius: 9px;
   background: var(--paper-deep);
   border: 1px solid var(--line);
-  color: #56765f;
+  color: var(--muted);
   flex-shrink: 0;
 }
 .service-mark.payments {
-  color: #174c8d;
+  color: var(--proof);
   background: var(--paper-deep);
   border-color: var(--rule);
 }
@@ -497,7 +497,7 @@
   max-width: none;
   margin: 0;
   gap: 0;
-  background: white;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 0 28px;
@@ -563,7 +563,7 @@
   padding: 24px;
   border: 1px solid var(--line);
   border-radius: 10px;
-  background: white;
+  background: var(--card);
   position: sticky;
   top: 84px;
   min-width: 0;
@@ -899,7 +899,7 @@
 }
 .handoff-main {
   padding: 32px;
-  background: white;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 10px;
 }
@@ -979,7 +979,7 @@
   min-height: 44px;
 }
 .handoff-agreement {
-  background: white;
+  background: var(--card);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 24px;

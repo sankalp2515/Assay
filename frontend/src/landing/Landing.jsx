@@ -52,7 +52,7 @@ function HeroLine() {
   return (
     <div className="hero-trace">
       <div className="hero-trace-bar">
-        <p className="eyebrow">Batch coastal-024 · ten paid clips · six systems</p>
+        <p className="eyebrow">Order coastal-024 · ten paid clips · six systems</p>
         <p className="eyebrow hero-trace-state" data-state={done ? "verified" : "broken"} aria-live="polite">
           <span aria-hidden="true" />
           {done ? "Delivery verified · money aligned" : "Records disagree"}
@@ -129,10 +129,11 @@ const CONTROLS = [
   [LockIcon, "Read-first by design", "Assay observes your systems. Writes are scoped, explicit and recorded with their outcome."],
 ];
 const EVIDENCE = [
-  ["$50 authorization, $40 final capture, $5 refund on the original capture, and a separate void", "Real PayPal Sandbox · adapter level"],
-  ["Five services with a hosted Gemini model, a real Sandbox buyer approval and one confirmed $40 capture", "Real AI and Sandbox · fixture media"],
-  ["Concurrency, row-level security, money bounds and encrypted restore", "Native PostgreSQL · local"],
-  ["The walkthrough on this site", "Illustrative · no services, no money"],
+  ["$50 authorization, $40 final capture, $5 refund on the original capture, and a separate void", "Real PayPal Sandbox · adapter level", "paypal-lifecycle.json"],
+  ["Five services with a hosted Gemini model, a real Sandbox buyer approval and one confirmed $40 capture", "Real AI and Sandbox · fixture media", "service-sandbox-workflow.json"],
+  ["Concurrency, row-level security, money bounds and encrypted restore", "Native PostgreSQL · local", "native-postgres.json"],
+  ["The services running as containers behind public HTTPS", "Hosted Sandbox · no payment in this check", "container-smoke.json"],
+  ["The walkthrough on this site", "Illustrative · no services, no money", null],
 ];
 const INCIDENT = BEFORE;
 const pad = (n) => String(n).padStart(2, "0");
@@ -155,10 +156,10 @@ export function Landing({ openDemo, connect, connectionError, mode }) {
           <Brand />
           <span className="eyebrow nav-kicker">AI outcome assurance</span>
           <nav aria-label="Page sections">
-            <a href="#/" onClick={go("how")}>Product</a>
+            <a href="#/" onClick={go("how")}>How it works</a>
             <a href="#/" onClick={go("investigation")}>Investigation</a>
-            <a href="#/" onClick={go("clips")}>Recovery</a>
-            <a href="#/" onClick={go("record")}>Settlement</a>
+            <a href="#/" onClick={go("clips")}>Clips</a>
+            <a href="#/" onClick={go("record")}>Record</a>
             <a href="#/" onClick={go("evidence")}>Evidence</a>
           </nav>
           <ThemeToggle />
@@ -391,10 +392,16 @@ export function Landing({ openDemo, connect, connectionError, mode }) {
             <div className="c5">
               <p className="eyebrow">07 — What has actually been run</p>
               <h2 className="smaller">Each claim says <em>what kind of evidence it is.</em></h2>
-              <p className="lead">PayPal Sandbox only. Not deployed, no live payments, no customer results. The production video provider adapter is not yet configured.</p>
+              <p className="lead">PayPal Sandbox only. No live payments and no customer results. Each record below is a file in the public repository.</p>
             </div>
             <ul className="c6 start7 sheet evidence-list">
-              {EVIDENCE.map(([claim, kind]) => <li key={claim}><span>{claim}</span><span className="source">{kind}</span></li>)}
+              {EVIDENCE.map(([claim, kind, file]) => (
+                <li key={claim}>
+                  <span>{claim}</span>
+                  <span className="source">{kind}</span>
+                  {file && <a className="text-link" href={`https://github.com/sankalp2515/Assay/blob/main/backend/evidence/${file}`} target="_blank" rel="noopener noreferrer">Open the record<ArrowUpRightIcon size={13} aria-hidden="true" /></a>}
+                </li>
+              ))}
             </ul>
           </div>
         </section>

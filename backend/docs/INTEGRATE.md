@@ -90,7 +90,7 @@ Set `MERCHANT_WEBHOOK_URL` (https) and `MERCHANT_WEBHOOK_SECRET` (32+ characters
 | `clip.recovered` | An original was restored instead of re-rendered |
 | `batch.settled` | PayPal confirmed the one capture (amount, clips charged of total, statement path) |
 | `batch.voided` | Nothing qualified; the authorization was voided |
-| `dispute.opened` / `dispute.updated` / `dispute.resolved` | PayPal reported a dispute on the capture. Refunds pause while it is open; `GET /v1/batches/{id}/disputes` has the signed statement to attach |
+| `dispute.opened` / `dispute.updated` / `dispute.resolved` | PayPal reported a dispute on the capture. Assay blocks new refunds while it knows the dispute is open; `GET /v1/batches/{id}/disputes` has the signed statement to attach |
 
 Each request has the headers `Assay-Event-Id`, `Assay-Event-Type` and `Assay-Signature: t=<unix>,v1=<hex>`. The `v1` value is HMAC-SHA256 of `<t>.<raw body>` with your secret. Verify it, reject timestamps older than 5 minutes, and dedupe on the event `id`. Delivery is at least once:
 

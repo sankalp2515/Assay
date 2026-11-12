@@ -296,7 +296,8 @@ export async function createGateway(options: GatewayOptions) {
     if (!s)
       return reply
         .code(401)
-        .send({ message: "Sign in to access your deliveries" });
+        // demo_login tells the page it can offer a one-click PayPal Sandbox workspace.
+        .send({ message: "Sign in to access your deliveries", demo_login: o.demoLogin === true });
     return {
       role: s.role,
       subject: s.subject,

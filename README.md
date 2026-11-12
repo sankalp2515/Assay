@@ -91,9 +91,10 @@ Assay is **not a video generator**. It sits between the generator a business alr
 
 | | |
 |---|---|
-| **Live product** | **https://assay-34-59-154-73.sslip.io** → *Open demo* → **Start here**. Each visitor gets an isolated workspace (own merchant, buyer and data) for 24 hours. |
+| **Live product (one click)** | **[Open a live PayPal Sandbox workspace](https://assay-34-59-154-73.sslip.io/api/demo-login?as=operator&returnTo=%2F%23%2Fstart)**. It lands on **Start here** in your own isolated workspace (merchant, buyer and data) for 24 hours. From the home page, *Start here* → *Run it live on PayPal Sandbox* does the same. *Open demo* on the home page is the illustrative walkthrough, which needs no account. |
 | **The guided job** | Start here walks you through agreement → PayPal hold → provider jobs → AI investigation → restore → exact capture → buyer's clips and signed statement. You play both merchant and buyer. |
 | **PayPal approval** | Needs a PayPal Sandbox *personal* test account. Its login is in the Devpost testing instructions. Test money only. |
+| **A verified reference case** | Batch `43b76034-08fa-4dea-959d-94d5e47492d0`: $50 authorization `5VS033985C290321J`, clip 08 restored, one $40 capture `6LH981233Y3805404`, both PayPal webhooks, 8 KERNEL playbacks, signed statement. All in [`hosted-sandbox-run.json`](backend/evidence/hosted-sandbox-run.json). |
 | **Your own AI clips** | On Start here, open *Use your own clips* and paste up to three public `https` video links from any generator. Assay downloads, decodes, archives and delivers them like provider output. |
 | **Merchant API** | Postman collection and hosted environment in [backend/docs/postman](backend/docs/postman). The sign-up invite code is in the Devpost testing instructions. |
 | **Landing mirror** | https://assay-sandbox.onrender.com (static landing page and walkthrough only). |
@@ -169,13 +170,13 @@ await assay.batches.registerTask(batch.id, { unit_id, source: "replicate", provi
 
 | | |
 |---|---|
-| **Providers** | Runway and Replicate (looked up with your key), or any provider that reports an output URL from a host you approved |
-| **Replicate connector** | Replicate calls Assay the moment a render completes (Standard Webhooks signature), so the original is archived in seconds |
+| **Providers** | Runway and Replicate, looked up with the provider token configured on the deployment, or any provider that reports an output URL from a host you approved. Per-merchant provider credentials are not built yet |
+| **Replicate connector** | For a deployment configured with a Replicate token: Replicate calls Assay when a render completes (Standard Webhooks signature) and the original is archived right away. Tested with signed fixture callbacks; a live Replicate recovery has not been run |
 | **Keys and scopes** | A server key for you; an `integration` key can register work but can never approve a charge; short-lived buyer tokens for the browser |
 | **Webhooks to you** | Signed events when a clip was recovered, when PayPal settled, and when a buyer opened a dispute |
 | **AI agents** | An MCP server (`npm run mcp`) lets Claude Code or any MCP client open batches, register tasks and read evidence. It has no tool that approves or refunds money |
 | **Currencies** | USD, EUR, GBP, CAD, AUD, JPY; one currency per batch |
-| **Disputes** | While a PayPal dispute is open, refunds pause; the signed statement is ready as evidence |
+| **Disputes** | Assay blocks new refunds while it knows of an open PayPal dispute on the capture; the signed statement is ready as evidence. Fixture-tested |
 | **Your own PayPal** | Partner onboarding with `PayPal-Auth-Assertion`, pending PayPal partner approval |
 
 ## Evidence
@@ -193,7 +194,7 @@ Every claim names its kind of evidence.
 | AI reading of buyer messages: Gemini 25/30 vs keyword baseline 15/30, 0 invalid readings | [`claim-reading-evaluation.json`](backend/evidence/claim-reading-evaluation.json) | Real Gemini; 30 held-out messages; single run |
 | AI action choice on structured facts: Gemini 17/20, rules 20/20. This is why AI does not decide actions | [`investigation-evaluation.json`](backend/evidence/investigation-evaluation.json) | Real Gemini |
 | Concurrency, RLS, money bounds, encrypted restore | [`native-postgres.json`](backend/evidence/native-postgres.json) | Native PostgreSQL, local |
-| Full local gate: 73/73 tests, 9 native PostgreSQL checks, type check, build | [`local-quality.json`](backend/evidence/local-quality.json) | Local, fixtures |
+| Full local gate: 74/74 tests, 9 native PostgreSQL checks, type check, build | [`local-quality.json`](backend/evidence/local-quality.json) | Local, fixtures |
 | Hosted container smoke, 16 checks | [`container-smoke.json`](backend/evidence/container-smoke.json) | Hosted deployment |
 
 ## Architecture
@@ -227,7 +228,7 @@ Details for each: [SPONSORS.md](backend/docs/SPONSORS.md).
 ## Limits, stated plainly
 
 - PayPal is **Sandbox only**. Only USD has run on real Sandbox. Non-USD currencies, disputes, merchant onboarding, GCS storage and Vertex AI are tested with fixtures.
-- The hosted demo's provider is a labeled stand-in that reuses pre-generated LTX-Video clips. The Runway adapter exists but is unconfigured.
+- The hosted demo's provider is a labeled stand-in that reuses pre-generated LTX-Video clips. The Runway and Replicate adapters exist but no live provider job has been recovered on the deployment. The demo recovers one original per case; re-render cost avoided is a merchant-configured estimate, not a measured saving.
 - The hosted Sandbox is a single-VM pilot: services, databases and media verifier on one e2-medium VM. Cross-database restore and failover are not yet tested.
 - Demand evidence is user reports and provider documentation, not merchant interviews. Economics are illustrative.
 

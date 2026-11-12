@@ -56,7 +56,7 @@ const REACHED = {
   ACCEPTED: 1, AWAITING_BUYER_APPROVAL: 1, AUTHORIZING: 1,
   AUTHORIZED: 2, RUNNING: 2, WAITING_FOR_PAYPAL: 1,
   WAITING_FOR_AI: 4, INVESTIGATED: 4, READY_FOR_REVIEW: 5,
-  SETTLEMENT_REQUESTED: 5, CLAIMED: 5, CANCEL_REQUESTED: 2, CLOSED: 6,
+  SETTLEMENT_REQUESTED: 5, CLAIMED: 5, CANCEL_REQUESTED: 1, CLOSED: 6,
 };
 export function coarseStations(state) {
   const reached = REACHED[state] ?? 1;
@@ -95,7 +95,7 @@ export function journeySteps(batch, { demoProvider = false, hasTasks = false } =
       ? [{
           key: "provider", who: "merchant", to: `/batches/${id}`, action: "Run the demo provider",
           title: "Run the demo provider",
-          detail: "A stand-in for your video provider: every delivered clip is the same pre-generated clip. Seven are delivered, one is archived but lost, two never render.",
+          detail: "A stand-in for your video provider that reuses two pre-generated LTX-Video clips, or up to three links of your own. Seven are delivered, one is archived but lost, two never render.",
           done: hasTasks || reached >= 4,
         }]
       : []),
@@ -130,4 +130,28 @@ export function journeySteps(batch, { demoProvider = false, hasTasks = false } =
     if (state === "next") found = true;
     return { ...step, state };
   });
+}
+
+/**
+ * A visitor's own clip links for the demo provider: one to three https addresses, one per
+ * line (or separated by spaces or commas). Empty input means "use the pre-generated clips".
+ * The server does the real checks; this only catches what it would refuse outright.
+ */
+export function clipLinks(text) {
+  const parts = String(text || "").split(/[\s,]+/).filter(Boolean);
+  if (!parts.length) return { urls: [], error: "" };
+  if (parts.length > 3) return { urls: [], error: "Use at most three links." };
+  const urls = [];
+  for (const part of parts) {
+    let u;
+    try {
+      u = new URL(part);
+    } catch {
+      return { urls: [], error: `"${part.slice(0, 60)}" is not a link.` };
+    }
+    if (u.protocol !== "https:" || u.username || u.password)
+      return { urls: [], error: "Each link must start with https:// and carry no sign-in details." };
+    urls.push(u.href);
+  }
+  return { urls, error: "" };
 }

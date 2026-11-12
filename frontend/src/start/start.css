@@ -77,3 +77,8 @@
   .start-steps li > .btn, .start-steps li > .text-link, .start-later { grid-column: 2; justify-self: start; }
   .start-steps li:not(:last-child)::after { top: 44px; bottom: -14px; }
 }
+.start-own { margin-top: 10px; max-width: 520px; }
+.start-own summary { cursor: pointer; min-height: 28px; display: flex; align-items: center; font-size: 13px; color: var(--ink-soft); text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 4px; }
+.start-own label { display: block; margin: 8px 0 6px; font-size: 13px; font-weight: 500; }
+.start-own textarea { width: 100%; font-family: var(--font-mono); font-size: 12px; resize: vertical; }
+.start-own .field-help { margin-top: 6px; font-size: 12.5px; }
