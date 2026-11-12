@@ -308,8 +308,10 @@ export function useCase(id, role = "operator") {
         throw e;
       }
       let settled = false;
-      for (let i = 0; i < 10 && !settled; i++) {
-        await wait(650);
+      // A Sandbox capture usually confirms in 5-20 s; read the payment record for up to
+      // 45 s before showing it as still processing.
+      for (let i = 0; i < 30 && !settled; i++) {
+        await wait(1500);
         const next = await load();
         settled = next.operations.some((o) => ["CAPTURE", "VOID"].includes(o.kind));
       }
