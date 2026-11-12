@@ -24,6 +24,7 @@ import { buildStations, buildTimeline, buildUnits, buildUnknowns, clipName, next
 import { useArtifactMedia, useCase } from "./useCase.js";
 import { Thumb, stillFor } from "../ui/stills.jsx";
 import "./case.css";
+import { PayPalLogo } from "../ui/PayPalLogo.jsx";
 
 // Bryntum is large; it loads only when the recovery window is opened.
 const Timeline = lazy(() => import("./Timeline.jsx"));
@@ -624,7 +625,7 @@ function Settlement({ c, ctx, data, canAct, envKind }) {
       <aside className="stack">
         <section className="sheet" aria-labelledby="summary-title">
           <div className="sheet-head terms-head">
-            <p className="eyebrow">PayPal authorization · {envKind === "sandbox" ? "Sandbox" : envKind === "fixture" ? "test fixture" : "illustrative"}</p>
+            <p className="eyebrow"><PayPalLogo size="sm" /> authorization · {envKind === "sandbox" ? "Sandbox" : envKind === "fixture" ? "test fixture" : "illustrative"}</p>
             <h2 id="summary-title" className="display">Settlement summary</h2>
           </div>
           <dl className="summary-rows">

@@ -11,6 +11,7 @@ import { titleOf } from "../case/CaseWorkspace.jsx";
 import { stillFor } from "../ui/stills.jsx";
 import "../case/case.css";
 import "./buyer.css";
+import { PayPalLogo } from "../ui/PayPalLogo.jsx";
 
 const pad = (n) => String(n).padStart(2, "0");
 
@@ -164,7 +165,7 @@ export function BuyerDelivery({ id }) {
         <aside className="stack">
           <section className="sheet receipt" aria-labelledby="payment-heading">
             <div className="receipt-top">
-              <p className="eyebrow" id="payment-heading">Receipt · PayPal</p>
+              <p className="eyebrow" id="payment-heading">Receipt · <PayPalLogo size="sm" /></p>
               <p className="display receipt-amount">{fmt(settled ? totals.captured : finance.state === "DRAFT" ? 0 : finance.operation?.amount_minor || 0)}</p>
               <p>{settled ? (voided ? "nothing was charged" : `charged for ${units.filter((u) => u.billing.tone === "confirmed").length} delivered clips`) : finance.state === "DRAFT" ? "charged so far. A hold is not a charge." : "requested. Not confirmed by PayPal yet."}</p>
             </div>

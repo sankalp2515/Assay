@@ -6,6 +6,7 @@ import {
   ArrowSquareOutIcon,
 } from "@phosphor-icons/react";
 import { money } from "../domain.js";
+import { PayPalLogo } from "./PayPalLogo.jsx";
 
 export function AuthorizationHandoff({
   batch,
@@ -68,14 +69,14 @@ export function AuthorizationHandoff({
               : "Share the private agreement link with your buyer. They can review the deliverables, fixed terms and maximum PayPal authorization before consenting."}
           </p>
           <div className="handoff-mobile-ceiling">
-            <span>Maximum PayPal authorization</span>
+            <span>Maximum <PayPalLogo size="xs" /> authorization</span>
             <strong>{money(batch.ceiling_minor)}</strong>
             <span>Not a confirmed charge</span>
           </div>
           <div className="handoff-actions">
             {role === "buyer" ? (
               <a className="primary flow-button" href={buyerPath}>
-                Review agreement & PayPal
+                Review agreement & <PayPalLogo size="sm" />
               </a>
             ) : (
               <>
@@ -112,7 +113,7 @@ export function AuthorizationHandoff({
             <li data-state="current">
               <span className="handoff-step-mark">2</span>
               <div>
-                <h3>Buyer authorizes PayPal</h3>
+                <h3>Buyer authorizes with <PayPalLogo size="sm" /></h3>
                 <p>
                   Authorization is not yet confirmed in this delivery record.
                 </p>

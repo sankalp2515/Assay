@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PayPalLogo } from "./PayPalLogo.jsx";
 import {
   CompassIcon,
   SquaresFourIcon,
@@ -245,7 +246,7 @@ export function ProductShell({
         <nav className="mobile-tabs" aria-label="Sections">{[...workspace, ...records, ...customer]}</nav>
         {children}
         <footer className="assay-foot">
-          <span>{demo ? "Illustrative walkthrough. No services, no payments." : "AI proposes. You approve. PayPal moves the money once."}</span>
+          <span>{demo ? "Illustrative walkthrough. No services, no payments." : <>AI proposes. You approve. <PayPalLogo size="sm" /> moves the money once.</>}</span>
           <a href="#/privacy">Privacy and retention</a>
         </footer>
       </div>

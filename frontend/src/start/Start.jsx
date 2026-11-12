@@ -6,6 +6,7 @@ import { request, signup } from "../api.js";
 import { money } from "../domain.js";
 import { journeySteps } from "../ui/delivery-view.js";
 import "./start.css";
+import { withPayPal } from "../ui/PayPalLogo.jsx";
 
 const ENV_COPY = {
   demo: ["Illustrative walkthrough", "Example records answered inside this page. No services, no PayPal, no money."],
@@ -191,7 +192,7 @@ export function Start({ envKind, demo, openDemo, connect, canConnect, demoLogin 
                   <span className="start-node" aria-hidden="true">{s.state === "done" ? <CheckIcon size={13} weight="bold" /> : i + 1}</span>
                   <div className="start-step-body">
                     <p className="start-step-title">
-                      <strong>{s.title}</strong>
+                      <strong>{withPayPal(s.title)}</strong>
                       <span className="start-who" data-who={s.who}>{s.who === "buyer" ? "Buyer" : "Merchant"}</span>
                       <span className="visually-hidden">{s.state === "done" ? ", done" : s.state === "next" ? ", next" : ", later"}</span>
                     </p>

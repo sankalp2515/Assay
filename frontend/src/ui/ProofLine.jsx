@@ -1,6 +1,7 @@
 // The Assay signature: six stations on one thread. State is carried by fill, line style and a word.
 import { CheckIcon, XIcon } from "@phosphor-icons/react";
 import { STATE_WORD } from "../case/model.js";
+import { PayPalLogo } from "./PayPalLogo.jsx";
 
 const linkState = (a, b) =>
   a.state === "broken" || b.state === "broken"
@@ -22,7 +23,10 @@ export function ProofLine({ stations, selected, onSelect, size = "md", animate =
             </span>
             {size !== "mini" && (
               <span className="station-text">
-                <span className="station-title">{s.title}</span>
+                <span className="station-title">
+                  {s.title}
+                  {(s.key === "payment" || s.key === "settlement") && <PayPalLogo variant="mark" size="xs" />}
+                </span>
                 <span className="eyebrow" data-state={s.state}>{STATE_WORD[s.state]}</span>
               </span>
             )}

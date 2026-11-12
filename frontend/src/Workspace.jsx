@@ -42,6 +42,7 @@ import { coarseStations, deliveryStage, filterDeliveries } from "./ui/delivery-v
 import { ProofLine } from "./ui/ProofLine.jsx";
 import { ProductShell } from "./ui/ProductShell.jsx";
 import { Chip, Reference } from "./ui/kit.jsx";
+import { PayPalLogo } from "./ui/PayPalLogo.jsx";
 
 const OP_TONE = {
   CONFIRMED: "confirmed",
@@ -604,7 +605,7 @@ function NewBatch({ session }) {
             </label>
           </section>
           <div className="mobile-editor-total">
-            <span>Maximum PayPal authorization</span>
+            <span>Maximum <PayPalLogo size="xs" /> authorization</span>
             <strong>
               {estimate.ceiling !== null
                 ? money(estimate.ceiling)
@@ -785,7 +786,7 @@ function Agreement({ id, demo, session }) {
               </Actions>
               {f.environment !== "fixture" && (url || safeApprovalUrl(f.order?.approval_url)) && (
                 <a className="paypal-button" href={url || safeApprovalUrl(f.order?.approval_url)} target="_blank" rel="noopener noreferrer">
-                  Continue to PayPal Sandbox
+                  <PayPalLogo size="md" /> Continue in Sandbox
                 </a>
               )}
               <button className="secondary" onClick={check} disabled={busy || !b.consented_at}>
@@ -842,7 +843,7 @@ function Agreement({ id, demo, session }) {
               </p>
             </section>
             <section className="document-panel">
-              <h2>Authorize with PayPal</h2>
+              <h2>Authorize with <PayPalLogo size="lg" /></h2>
               <p>
                 This is a temporary authorization ceiling, not confirmation of a
                 completed charge.

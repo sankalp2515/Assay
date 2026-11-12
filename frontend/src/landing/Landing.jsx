@@ -22,6 +22,7 @@ import { DARKROOM, STILLS } from "../ui/stills.jsx";
 import { scrollBehavior } from "../ui/kit.jsx";
 import "../case/case.css";
 import "./landing.css";
+import { PayPalLogo, withPayPal } from "../ui/PayPalLogo.jsx";
 
 const TITLES = { agreement: "Agreement", payment: "Payment", execution: "Execution", artifact: "Artifact", delivery: "Delivery", settlement: "Settlement" };
 const SUB = { agreement: "Merchant app", payment: "PayPal", execution: "Provider", artifact: "Archive", delivery: "Buyer route", settlement: "PayPal" };
@@ -67,7 +68,7 @@ function HeroLine() {
             {i < stations.length - 1 && <span className="hl-link" data-state={link(s, stations[i + 1])} aria-hidden="true" />}
             <article className="sheet" data-state={s.state}>
               <div><h3>{s.title}</h3><span className="eyebrow" data-state={s.state}>{s.tag}</span></div>
-              <p className="eyebrow">{s.subtitle}</p>
+              <p className="eyebrow">{withPayPal(s.subtitle)}</p>
               <div className="hl-lines"><p className="num">{s.lines[0]}</p><p className="num">{s.lines[1]}</p></div>
             </article>
           </li>
@@ -426,7 +427,7 @@ export function Landing({ openDemo, connect, connectionError, mode }) {
             <a href="#/signin">Sign in</a>
             <a href="#/privacy">Privacy and retention</a>
           </nav>
-          <p className="eyebrow">A PayPal AI Hackathon 2026 entry · PayPal Sandbox only</p>
+          <p className="eyebrow">A PayPal AI Hackathon 2026 entry · settles through <PayPalLogo size="sm" /> Sandbox only</p>
         </div>
       </footer>
     </div>

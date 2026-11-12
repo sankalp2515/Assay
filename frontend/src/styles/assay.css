@@ -386,3 +386,18 @@ input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea {
 .paypal-fallback summary { cursor: pointer; font-size: 13px; color: var(--muted); min-height: 32px; display: flex; align-items: center; }
 .paypal-fallback summary:hover { color: var(--ink); }
 .paypal-fallback[open] summary { margin-bottom: 8px; }
+
+/* PayPal's official logos (src/ui/PayPalLogo.jsx). Height only; width follows the file. */
+.pp-logo { display: inline-flex; align-items: center; vertical-align: middle; line-height: 0; margin: 0 0.2em; }
+.pp-logo img { display: block; height: var(--pp-h, 18px); width: auto; }
+.pp-xs { --pp-h: 12px; }
+.pp-sm { --pp-h: 14px; }
+.pp-md { --pp-h: 18px; }
+.pp-lg { --pp-h: 24px; }
+:root.dark .pp-logo { background: #fff; border-radius: 4px; padding: 2px 5px; }
+.eyebrow .pp-logo { margin-left: 0; }
+/* Fallback approval link: PayPal's logo on a plain light button, never on our accent colour. */
+.paypal-button { gap: 8px; background: #fff; color: #111; border: 1px solid var(--line, #d5d5d5); }
+.paypal-button:hover { border-color: #0070e0; }
+:root.dark .paypal-button { background: #fff; color: #111; }
+:root.dark .paypal-button .pp-logo { padding: 0; }
