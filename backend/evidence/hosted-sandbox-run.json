@@ -3,7 +3,12 @@
   "kind": "Full job through the hosted UI on PayPal Sandbox (test money), with a Sandbox personal buyer approving in PayPal's own checkout",
   "deployment": "https://assay-34-59-154-73.sslip.io (Google Cloud VM, five services, separate databases)",
   "batch_id": "43b76034-08fa-4dea-959d-94d5e47492d0",
-  "agreement": { "clips": 10, "price_minor": 500, "currency": "USD", "ceiling_minor": 5000 },
+  "agreement": {
+    "clips": 10,
+    "price_minor": 500,
+    "currency": "USD",
+    "ceiling_minor": 5000
+  },
   "steps": [
     "Merchant created the agreement in the hosted workspace",
     "Buyer accepted the terms and approved the PayPal hold in Sandbox checkout",
@@ -14,14 +19,32 @@
   ],
   "paypal": {
     "order": "06C12617HB847344U",
-    "authorization": { "id": "5VS033985C290321J", "amount_minor": 5000, "state": "AUTHORIZED" },
-    "capture": { "id": "6LH981233Y3805404", "amount_minor": 4000, "state": "CONFIRMED" },
+    "authorization": {
+      "id": "5VS033985C290321J",
+      "amount_minor": 5000,
+      "state": "AUTHORIZED"
+    },
+    "capture": {
+      "id": "6LH981233Y3805404",
+      "amount_minor": 4000,
+      "state": "CONFIRMED"
+    },
     "not_taken_minor": 1000,
     "note": "The unused $10.00 was never captured. It is not a refund."
   },
   "webhooks_received": [
-    { "event_type": "PAYMENT.AUTHORIZATION.CREATED", "resource_id": "5VS033985C290321J", "assay_response": 200, "assay_handling_ms": 1397 },
-    { "event_type": "PAYMENT.CAPTURE.COMPLETED", "resource_id": "6LH981233Y3805404", "assay_response": 200, "assay_handling_ms": 722 }
+    {
+      "event_type": "PAYMENT.AUTHORIZATION.CREATED",
+      "resource_id": "5VS033985C290321J",
+      "assay_response": 200,
+      "assay_handling_ms": 1397
+    },
+    {
+      "event_type": "PAYMENT.CAPTURE.COMPLETED",
+      "resource_id": "6LH981233Y3805404",
+      "assay_response": 200,
+      "assay_handling_ms": 722
+    }
   ],
   "webhook_signature": "verified through PayPal's verify-webhook-signature API before the event is stored",
   "kernel_playback": {
@@ -44,5 +67,18 @@
     "The first AI reassessment after the restore failed (assessment_unavailable_or_invalid) and the review waited; a manual re-run succeeded. No money moved while the AI was unavailable.",
     "The investigation page did not refresh by itself while clips were archiving; a reload showed the current state."
   ],
-  "limits": "Sandbox only. Clips are pre-generated LTX-Video outputs reused by the demo provider, not a live provider job for this batch."
+  "limits": "Sandbox only. Clips are pre-generated LTX-Video outputs reused by the demo provider, not a live provider job for this batch.",
+  "repeat_run_final_build": {
+    "at": "2026-11-12T16:45:00Z",
+    "build": "d68b13f (final frontend and gateway)",
+    "batch_id": "051ae5ce-1e35-44ba-8399-a041a27a1102",
+    "authorization": "5GJ781130D162014T",
+    "capture": {
+      "id": "2MU965521D7498805",
+      "amount_minor": 4000,
+      "state": "CONFIRMED"
+    },
+    "order_state_after_authorization": "COMPLETED",
+    "observed": "Same path through the hosted UI from a fresh workspace: buyer approval in PayPal Sandbox checkout, archiving shown live without reloads, AI investigation, clip 08 restored, one $40 capture, buyer view showing 8 of 10 delivered, $40.00 charged and $10.00 never taken."
+  }
 }
