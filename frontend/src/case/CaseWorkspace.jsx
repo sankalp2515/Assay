@@ -71,6 +71,12 @@ function headline(ctx) {
       : [<>Found, delivered and <em>charged once.</em></>, `${ready.length} of ${units.length} clips reached the buyer. ${fmt(paymentSummary(ctx.operations).captured)} was captured and ${fmt(batch.ceiling_minor - paymentSummary(ctx.operations).captured)} was never taken.`];
   if (finance.state !== "DRAFT")
     return [<>Capture sent. <em>Not confirmed yet.</em></>, "Until PayPal read-back confirms it, this is pending everywhere. Pending is not paid."];
+  // While finished clips are still being copied into the archive, the counts are moving:
+  // never invite a settlement yet.
+  const up = (v) => String(v || "").toUpperCase();
+  const archiving = units.filter((u) => up(u.artifact?.state) === "COPYING" || (up(u.attempt?.state) === "SUCCEEDED" && !u.artifact));
+  if (archiving.length)
+    return [<>Archiving {archiving.length} finished {archiving.length === 1 ? "clip" : "clips"}. <em>One moment.</em></>, `${ready.length} of ${units.length} delivered so far. Assay copies each finished clip from the provider before the provider deletes it. This page updates itself.`];
   if (lost.length)
     return [<>The app said <span className="strike">failed</span>. <em>The video exists.</em></>, `The provider finished clip ${lost.map((u) => pad(u.index + 1)).join(", ")} and the archive holds the file, but it was never published to the buyer. ${ready.length} of ${units.length} clips are reachable.`];
   if (ready.length)
