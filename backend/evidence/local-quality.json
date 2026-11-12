@@ -1,16 +1,16 @@
 {
-  "at": "2026-11-12T09:58:28.082Z",
+  "at": "2026-11-12T12:08:11.787Z",
   "passed": true,
   "results": [
     {
       "step": "typecheck",
       "passed": true,
-      "elapsed_ms": 6833
+      "elapsed_ms": 6120
     },
     {
       "step": "tests",
       "passed": true,
-      "elapsed_ms": 222902,
+      "elapsed_ms": 195307,
       "tests": 73,
       "tests_passed": 73,
       "failed": 0
@@ -18,17 +18,17 @@
     {
       "step": "native-postgres",
       "passed": true,
-      "elapsed_ms": 20686
+      "elapsed_ms": 15405
     },
     {
       "step": "build",
       "passed": true,
-      "elapsed_ms": 6414
+      "elapsed_ms": 6586
     },
     {
       "step": "openapi",
       "passed": true,
-      "elapsed_ms": 8668
+      "elapsed_ms": 6801
     }
   ],
   "native_database_checks": 9,

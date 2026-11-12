@@ -7,7 +7,7 @@
 !/README.md
 !/LICENSE
 !/DESIGN.md
-!/PRODUCT.md
+!/docs/
 !/backend/
 !/frontend/
 !/product/
@@ -15,10 +15,6 @@
 !/product/PROBLEM_STATEMENT.md
 !/product/PUBLIC_SOURCES.md
 !/product/PRD.md
-!/product/REAL_USER_READINESS.md
-!/product/MERCHANT_INTERVIEWS.md
-!/product/REVIEW_RESPONSE_2026_11_12.md
-!/product/REACH_AND_INTEGRATION_2026_11_12.md
 
 # Secrets and private local state
 .env
@@ -37,7 +33,9 @@ backend/evidence/private/
 **/__pycache__/
 **/.venv/
 
-# Internal agent notes, tool caches and design review material
+# Internal agent notes, working logs, tool caches and design review material
+backend/docs/ENGINEERING_PHASES.md
+backend/docs/FRONTEND_HANDOFF.md
 **/AGENTS.md
 frontend/design-qa.md
 frontend/review/

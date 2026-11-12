@@ -1,0 +1,8 @@
+{
+  "at": "2026-11-12T11:59:02.074Z",
+  "target": "external deployment",
+  "requests": 23,
+  "assertions": 21,
+  "assertions_failed": 0,
+  "failures": []
+}

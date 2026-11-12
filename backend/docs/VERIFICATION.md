@@ -55,7 +55,7 @@ Payment concurrency follow-up: reconciliation leaves undispatched reservations a
 
 ## Frontend handoff and no-cost video proof
 
-The localhost recovery fixture passed an HTTP smoke covering operator review, durable asynchronous AI adoption, private buyer retrieval and outbox settlement. The fixture uses synthetic media, a fixture model and a fixture payment adapter. See [frontend handoff](FRONTEND_HANDOFF.md) and `evidence/frontend-fixtures-smoke.json`.
+The localhost recovery fixture passed an HTTP smoke covering operator review, durable asynchronous AI adoption, private buyer retrieval and outbox settlement. The fixture uses synthetic media, a fixture model and a fixture payment adapter. See `evidence/frontend-fixtures-smoke.json`.
 
 The actual LTX clip was generated through the public Lightricks ZeroGPU demo, then downloaded from its completed Gradio result. The 4.03-second 1280×736 H.264 file passed decode and hash verification through a separate loopback verifier process. The integration harness used a fixed result bridge, then called the normal attempt, preserve, investigate, restore, buyer content and closure routes. No second generation was submitted for that result. The original, archive and buyer bytes matched. This proves recovery of actual AI-generated output under test conditions. The standard service runtime still uses the Runway adapter.
 

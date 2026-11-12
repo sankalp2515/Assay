@@ -181,7 +181,13 @@ export function investigationRoutes(app: FastifyInstance, ctx: Context) {
             completed_at: now(),
           }),
         );
-      } catch {
+      } catch (err) {
+        // Keep the reason in the service log (no evidence text or keys), so a failed
+        // reassessment can be diagnosed instead of only showing "AI unavailable".
+        app.log.warn(
+          { assessment: String(record.id), reason: String((err as Error)?.message ?? err).slice(0, 300) },
+          "assessment failed",
+        );
         return ctx.db.mutate(
           a.tenant,
           "assessment",

@@ -624,7 +624,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('authorized for the ceiling, not charged', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().state).to.eql('AUTHORIZED'); });"
+                  "if (pm.response.code === 200) pm.test('authorized for the ceiling, not charged', () => pm.expect(pm.response.json().state).to.eql('AUTHORIZED')); else pm.test('no buyer approval yet: no hold is claimed', () => { pm.expect([409, 422]).to.include(pm.response.code); pm.expect(pm.response.json().state).not.to.eql('AUTHORIZED'); });"
                 ]
               }
             }

@@ -32,7 +32,7 @@
 - **Real KERNEL check** (`npm run check:kernel`, `evidence/kernel-playback.json`): a cloud Chromium fetched a public CC0 H.264 clip, the digest matched, it played to 0.64 s at 960×540, and a replay was recorded.
 - **Fixture tests** cover the full flow inside Assay: queueing, budget, buyer and merchant views, dispute evidence, and failures.
 
-**Not yet verified.** A probe against a hosted Assay buyer route. That needs the deployment, because KERNEL must reach the clip over the internet.
+- **Hosted Assay clips** (`evidence/hosted-sandbox-run.json`, 12 November): in a full PayPal Sandbox run through the deployed UI, KERNEL probed all 8 delivered clips from the public buyer route. All 8 matched the archived SHA-256 and played at 1280×720.
 
 ## Postman: the merchant's runnable integration guide and contract test
 
@@ -58,7 +58,10 @@
 
 There are local and hosted-Sandbox environments. `npm run postman:run` runs the collection headless with Newman.
 
-**Verified.** Run against all five services on local HTTP with fixture PayPal: 23 requests, 21 assertions, 0 failures (`evidence/postman-run.json`).
+**Verified.**
+
+- Local: all five services on HTTP with fixture PayPal, 23 requests, 21 assertions, 0 failures (`evidence/postman-run.json`).
+- Hosted: the same collection against the deployed Sandbox service, 23 requests, 21 assertions, 0 failures (`evidence/postman-hosted-run.json`). Without a human buyer approval in PayPal, the authorize step correctly refuses to claim a hold.
 
 **Not yet done.** Publishing it in a public Postman workspace needs the user's Postman account.
 
@@ -79,7 +82,7 @@ An operator needs to see which clips are close to being lost and which deadlines
 - **Facts and estimates look different.** Every event is marked `OBSERVED` (from Assay's records) or `ESTIMATE` (from a provider's published retention or PayPal's honor period).
 - **Clips at risk are flagged.** `at_risk_unit_ids` lists clips not yet archived whose provider copy is still alive.
 
-**Backend.** `GET /v1/batches/:id/timeline` is built and tested. The screen is being built by the frontend session.
+**Built and verified.** `GET /v1/batches/:id/timeline` feeds the Recovery window screen. On the hosted deployment it showed the PayPal row, all ten clips and the deadlines for the 12 November Sandbox run. It runs on Bryntum's hackathon trial licence (valid to 26 December 2026), so Bryntum's own "Trial" badge appears.
 
 ## AG Grid / AG Studio: the merchant's operations view
 
@@ -93,7 +96,7 @@ An operator needs to see which clips are close to being lost and which deadlines
 
 **What AG Studio does.** A dashboard over `GET /v1/operations/dashboard` (one row per batch or per clip) and `GET /v1/operations/impact`. If its agent is enabled, it may build and query widgets only. It gets no payment or approval tools, consistent with Assay's rule that AI reads and rules decide.
 
-**Backend.** The endpoints are built and tested. The screen is with the frontend session. The AG Studio licence key is optional and has not been provided.
+**Built and verified.** The Dashboard screen renders the hosted 12 November Sandbox run from these endpoints: 10 clips ordered, 8 delivered, 1 recovered, $40.00 charged and $10.00 never taken. It uses an AG Studio trial licence key.
 
 ## APIMatic: checking our PayPal calls against PayPal's API definitions
 

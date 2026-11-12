@@ -108,11 +108,9 @@ Each request has the headers `Assay-Event-Id`, `Assay-Event-Type` and `Assay-Sig
   - AI never sets an amount, approves, or moves money.
 - **Your responsibility:** registering tasks when you submit them (step 2) and keeping `REPORTED_OUTPUT_HOSTS` tight.
 - **Not yet available:**
-  - A hosted service. [DEPLOY.md](DEPLOY.md) is the plan.
+  - A production deployment. The hosted PayPal Sandbox deployment is at https://assay-34-59-154-73.sslip.io; [DEPLOY.md](DEPLOY.md) describes it.
   - The SDK on npm.
   - Real PayPal partner approval, which a deployment where each merchant connects their own PayPal account needs.
-
-  See [product/REAL_USER_READINESS.md](../../product/REAL_USER_READINESS.md).
 
 ## Optional: archive the moment Replicate finishes
 

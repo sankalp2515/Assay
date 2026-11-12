@@ -1,0 +1,48 @@
+{
+  "at": "2026-11-12T11:53:37Z",
+  "kind": "Full job through the hosted UI on PayPal Sandbox (test money), with a Sandbox personal buyer approving in PayPal's own checkout",
+  "deployment": "https://assay-34-59-154-73.sslip.io (Google Cloud VM, five services, separate databases)",
+  "batch_id": "43b76034-08fa-4dea-959d-94d5e47492d0",
+  "agreement": { "clips": 10, "price_minor": 500, "currency": "USD", "ceiling_minor": 5000 },
+  "steps": [
+    "Merchant created the agreement in the hosted workspace",
+    "Buyer accepted the terms and approved the PayPal hold in Sandbox checkout",
+    "Demo provider registered ten jobs using pre-generated LTX-Video clips: seven delivered, one archived but never published, two never rendered",
+    "Hosted AI investigation cited the records and identified clip 08 as archived but unpublished",
+    "Merchant approved restoring the archived original for clip 08 (no new render)",
+    "Server built the exact review; merchant approved one capture"
+  ],
+  "paypal": {
+    "order": "06C12617HB847344U",
+    "authorization": { "id": "5VS033985C290321J", "amount_minor": 5000, "state": "AUTHORIZED" },
+    "capture": { "id": "6LH981233Y3805404", "amount_minor": 4000, "state": "CONFIRMED" },
+    "not_taken_minor": 1000,
+    "note": "The unused $10.00 was never captured. It is not a refund."
+  },
+  "webhooks_received": [
+    { "event_type": "PAYMENT.AUTHORIZATION.CREATED", "resource_id": "5VS033985C290321J", "assay_response": 200, "assay_handling_ms": 1397 },
+    { "event_type": "PAYMENT.CAPTURE.COMPLETED", "resource_id": "6LH981233Y3805404", "assay_response": 200, "assay_handling_ms": 722 }
+  ],
+  "webhook_signature": "verified through PayPal's verify-webhook-signature API before the event is stored",
+  "kernel_playback": {
+    "probes": 8,
+    "played": 8,
+    "digest_matches": 8,
+    "resolution": "1280x720",
+    "note": "A cloud Chromium outside Assay's network fetched each delivered clip from the public buyer route, matched its SHA-256 with the archived original, and played it. Replay links are signed and are kept out of this file."
+  },
+  "signed_statement": {
+    "alg": "EdDSA",
+    "kid": "payments",
+    "statement_digest": "d3a98467917818f0823a10bc11f0df978c5dfac8b19990172e64061116fc57ba",
+    "charged_clips": 8,
+    "charged_minor": 4000,
+    "signature_valid": true,
+    "verified_with": "the public key served at /v1/statements/keys, checked outside the deployment"
+  },
+  "observed_issues": [
+    "The first AI reassessment after the restore failed (assessment_unavailable_or_invalid) and the review waited; a manual re-run succeeded. No money moved while the AI was unavailable.",
+    "The investigation page did not refresh by itself while clips were archiving; a reload showed the current state."
+  ],
+  "limits": "Sandbox only. Clips are pre-generated LTX-Video outputs reused by the demo provider, not a live provider job for this batch."
+}

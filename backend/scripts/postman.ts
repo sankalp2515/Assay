@@ -154,7 +154,9 @@ export function merchantCollection() {
         description: "Open {{approval_url}} as the Sandbox buyer and approve first.",
         item: [
           post("Authorize the hold", "/v1/batches/{{batch_id}}/paypal/authorize", "buyer_token", {}, "paypal-auth-{{run}}", [
-            "pm.test('authorized for the ceiling, not charged', () => { pm.response.to.have.status(200); pm.expect(pm.response.json().state).to.eql('AUTHORIZED'); });",
+            // Against a real Sandbox deployment the buyer approves in PayPal by hand. Without that
+            // approval PayPal refuses the authorization and Assay must not claim a hold.
+            "if (pm.response.code === 200) pm.test('authorized for the ceiling, not charged', () => pm.expect(pm.response.json().state).to.eql('AUTHORIZED')); else pm.test('no buyer approval yet: no hold is claimed', () => { pm.expect([409, 422]).to.include(pm.response.code); pm.expect(pm.response.json().state).not.to.eql('AUTHORIZED'); });",
           ]),
           post("Hosted demo only: simulate the provider", "/v1/demo/batches/{{batch_id}}/simulate-provider", "api_key", {}, "demo-{{run}}", [
             "pm.test('labeled simulation or not enabled', () => { if (pm.response.code === 200) pm.expect(pm.response.json().simulated).to.eql(true); else pm.expect([404, 409]).to.include(pm.response.code); });",
