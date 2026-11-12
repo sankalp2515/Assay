@@ -1,6 +1,6 @@
 // Public page, laid out after the Assay design file. The figures are the product's own worked
 // example (ten clips at $5, one lost in delivery, two never produced), not the file's placeholder job.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRightIcon,
   ArrowCounterClockwiseIcon,
@@ -23,6 +23,12 @@ import { scrollBehavior } from "../ui/kit.jsx";
 import "../case/case.css";
 import "./landing.css";
 import { PayPalLogo, withPayPal } from "../ui/PayPalLogo.jsx";
+import { LIVE_DEMO_HREF } from "../api.js";
+import POSTER from "../assets/hero/lighthouse-poster.webp";
+
+const REPO = "https://github.com/sankalp2515/Assay";
+const FILE = (path) => `${REPO}/blob/main/${path}`;
+const HERO_CLIP = "/demo/lighthouse.mp4";
 
 const TITLES = { agreement: "Agreement", payment: "Payment", execution: "Execution", artifact: "Artifact", delivery: "Delivery", settlement: "Settlement" };
 const SUB = { agreement: "Merchant app", payment: "PayPal", execution: "Provider", artifact: "Archive", delivery: "Buyer route", settlement: "PayPal" };
@@ -46,20 +52,126 @@ const AFTER = [
 ];
 const link = (a, b) => (a.state === "broken" || b.state === "broken" ? "broken" : a.state === "verified" && b.state === "verified" ? "verified" : "pending");
 
-function HeroLine() {
-  const [done, setDone] = useState(false);
-  const stations = done ? AFTER : BEFORE;
+// The hero plays the worked example once: six records are read one by one, delivery turns out
+// broken, then the clip is re-linked, delivery verified and the money settled. Steps 1-6 read
+// the records, 7 re-links the file, 8 verifies delivery, 9 settles.
+const LAST = 9;
+const WAITING = (s) => ({ ...s, state: "pending", tag: "Reading" });
+function stationsAt(step) {
+  return BEFORE.map((s, i) => {
+    if (step <= i) return WAITING(s);
+    if (step >= 9 && (s.key === "payment" || s.key === "settlement")) return AFTER[i];
+    if (step >= 8 && s.key === "delivery") return AFTER[i];
+    if (step >= 7 && s.key === "artifact") return AFTER[i];
+    return s;
+  });
+}
+function useSequence() {
+  const still = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const [step, setStep] = useState(still ? LAST : 0);
+  const [run, setRun] = useState(0);
+  useEffect(() => {
+    if (still) return;
+    setStep(0);
+    // Reading is quick; the break is held long enough to be seen before the recovery.
+    const at = [500, 850, 1200, 1550, 1900, 2250, 4300, 5200, 6100];
+    const timers = at.map((ms, i) => setTimeout(() => setStep(i + 1), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [run, still]);
+  return { step, replay: useCallback(() => setRun((n) => n + 1), []), still };
+}
+function useCount(target, ms = 900) {
+  const [value, setValue] = useState(target);
+  const from = useRef(target);
+  useEffect(() => {
+    const start = from.current;
+    if (start === target) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      from.current = target;
+      return setValue(target);
+    }
+    let frame;
+    const t0 = performance.now();
+    const tick = (now) => {
+      const p = Math.min(1, (now - t0) / ms);
+      const v = Math.round(start + (target - start) * (1 - (1 - p) ** 3));
+      setValue(v);
+      if (p < 1) frame = requestAnimationFrame(tick);
+      else from.current = target;
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, ms]);
+  return value;
+}
+const usd = (cents) => `$${(cents / 100).toFixed(2)}`;
+
+function HeroStage({ step }) {
+  const video = useRef(null);
+  const restored = step >= 8;
+  const held = step >= 2;
+  const settled = step >= 9;
+  const captured = useCount(settled ? 4000 : 0);
+  useEffect(() => {
+    // The clip is fetched after first paint; the poster holds the frame until then.
+    const v = video.current;
+    if (!v || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setTimeout(() => {
+      v.src = HERO_CLIP;
+      v.play?.().catch(() => {});
+    }, 600);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <div className="hero-stage rise" style={{ "--d": "200ms" }}>
+      <figure className="hero-clip" data-state={restored ? "restored" : step >= 5 ? "lost" : "reading"}>
+        <video ref={video} poster={POSTER} muted loop playsInline preload="none" width="960" height="540" aria-label="A lighthouse on a green headland above a calm sea. AI-generated clip used by the Sandbox demo." />
+        <figcaption>
+          <span className="eyebrow">{restored ? "Clip 08 · restored original" : step >= 5 ? "Clip 08 · marked failed" : "Clip 08 · reading records"}</span>
+          <span className="hero-clip-facts num" aria-live="polite">
+            {restored ? <><CheckIcon size={12} weight="bold" aria-hidden="true" />Buyer can open it · SHA-256 match</> : step >= 5 ? <><XIcon size={12} weight="bold" aria-hidden="true" />Rendered and archived · never delivered</> : "Provider · archive · buyer route"}
+          </span>
+        </figcaption>
+      </figure>
+      <dl className="hero-ledger">
+        <div data-on={held || undefined}>
+          <dt>Authorized hold</dt>
+          <dd className="num">{held ? "$50.00" : "—"}</dd>
+          <span>{held ? "Held in PayPal, not a charge" : "Waiting for the buyer"}</span>
+        </div>
+        <div data-on={settled || undefined} data-tone="proof">
+          <dt>Captured once</dt>
+          <dd className="num">{usd(captured)}</dd>
+          <span>{settled ? "8 clips the buyer can open" : "Nothing captured yet"}</span>
+        </div>
+        <div data-on={settled || undefined}>
+          <dt>Never taken</dt>
+          <dd className="num">{settled ? "$10.00" : "—"}</dd>
+          <span>{settled ? "Released. Not a refund." : "2 clips were never made"}</span>
+        </div>
+      </dl>
+      <p className="fineprint">Illustrative sequence. The clip is real LTX-Video output, the one the Sandbox demo delivers.</p>
+    </div>
+  );
+}
+
+function HeroLine({ step, replay, still }) {
+  const done = step >= LAST;
+  const broken = step >= 5 && step < 8;
+  const stations = stationsAt(step);
   return (
     <div className="hero-trace">
       <div className="hero-trace-bar">
         <p className="eyebrow">Order coastal-024 · ten paid clips · six systems</p>
-        <p className="eyebrow hero-trace-state" data-state={done ? "verified" : "broken"} aria-live="polite">
+        <p className="eyebrow hero-trace-state" data-state={done ? "verified" : broken ? "broken" : "pending"} aria-live="polite">
           <span aria-hidden="true" />
-          {done ? "Delivery verified · money aligned" : "Records disagree"}
+          {done ? "Delivery verified · charged once" : broken ? "Records disagree" : step >= 8 ? "Delivery verified · settling" : "Reading six records"}
         </p>
-        <button className="btn btn-outline btn-sm" onClick={() => setDone(!done)}>
-          {done ? <><ArrowCounterClockwiseIcon size={14} aria-hidden="true" />Reset</> : <><ScanIcon size={14} aria-hidden="true" />Trace this job</>}
-        </button>
+        {!still && (
+          <button className="btn btn-outline btn-sm" onClick={replay}>
+            {done ? <><ArrowCounterClockwiseIcon size={14} aria-hidden="true" />Replay</> : <><ScanIcon size={14} aria-hidden="true" />Start again</>}
+          </button>
+        )}
       </div>
       <ol className="hero-line">
         {stations.map((s, i) => (
@@ -129,6 +241,7 @@ const CONTROLS = [
   [LockIcon, "Read-first by design", "Assay observes your systems. Writes are scoped, explicit and recorded with their outcome."],
 ];
 const EVIDENCE = [
+  ["One job through the hosted screens: $50 hold approved in PayPal checkout, clip 08 restored, one $40 capture, signed statement verified", "Real PayPal Sandbox and hosted AI · pre-generated clips", "hosted-sandbox-run.json"],
   ["$50 authorization, $40 final capture, $5 refund on the original capture, and a separate void", "Real PayPal Sandbox · adapter level", "paypal-lifecycle.json"],
   ["Five services with a hosted Gemini model, a real Sandbox buyer approval and one confirmed $40 capture", "Real AI and Sandbox · fixture media", "service-sandbox-workflow.json"],
   ["Concurrency, row-level security, money bounds and encrypted restore", "Native PostgreSQL · local", "native-postgres.json"],
@@ -138,8 +251,9 @@ const EVIDENCE = [
 const INCIDENT = BEFORE;
 const pad = (n) => String(n).padStart(2, "0");
 
-export function Landing({ openDemo, connect, connectionError, mode }) {
+export function Landing({ openDemo, connect, connectionError, mode, live = false }) {
   useInputMode();
+  const seq = useSequence();
   useEffect(() => {
     document.title = "Assay · From payment to proof of delivery";
   }, []);
@@ -172,23 +286,34 @@ export function Landing({ openDemo, connect, connectionError, mode }) {
           <div className="grid-paper hero-paper" aria-hidden="true" />
           <div className="lp-wrap">
             <div className="hero-top">
-              <div className="enter hero-copy">
-                <p className="eyebrow">AI outcome assurance <span className="slash">/</span> for businesses that sell AI-generated work</p>
-                <h1>The model finished.<br /><em className="in-proof">Can you prove</em> your<br className="wide-break" /> customer got it?</h1>
-              </div>
-              <div className="hero-side">
-                <p className="rise" style={{ "--d": "300ms" }}>Payments, models, queues, storage and your app each keep their own version of the truth. When they disagree, customers see <em>“failed”</em> for work you already paid to generate.</p>
-                <p className="rise ink" style={{ "--d": "400ms" }}>Assay finds the work, restores it, verifies delivery, and settles the money to match.</p>
-                <div className="hero-actions rise" style={{ "--d": "500ms" }}>
-                  <button className="btn btn-proof btn-xl" onClick={openDemo}>Watch a recovery<ArrowRightIcon size={16} aria-hidden="true" /></button>
-                  <a className="btn btn-outline btn-xl" href="#/" onClick={go("evidence")}>See the evidence</a>
+              <div className="hero-copy">
+                <div className="enter">
+                  <p className="eyebrow">AI outcome assurance <span className="slash">/</span> for businesses that sell AI-generated work</p>
+                  <h1>The model finished.<br /><em className="in-proof">Can you prove</em> your customer got it?</h1>
                 </div>
-                <a className="text-link" href="#/start">Try every step yourself</a>
-                {import.meta.env.DEV && mode !== "backend" && <button className="text-link" onClick={connect}>Use local services instead</button>}
+                <p className="hero-lede rise" style={{ "--d": "250ms" }}>When payment, provider, storage and your app disagree, a customer sees <em>“failed”</em> for a video that exists. Assay finds it, restores it, verifies delivery, and settles the money to match.</p>
+                <div className="hero-actions rise" style={{ "--d": "350ms" }}>
+                  {live ? (
+                    <a className="btn btn-proof btn-xl" href={LIVE_DEMO_HREF}>Run it live on <PayPalLogo size="md" /> Sandbox<ArrowRightIcon size={16} aria-hidden="true" /></a>
+                  ) : (
+                    <button className="btn btn-proof btn-xl" onClick={openDemo}>Watch a recovery<ArrowRightIcon size={16} aria-hidden="true" /></button>
+                  )}
+                  {live ? (
+                    <button className="btn btn-outline btn-xl" onClick={openDemo}>Watch the walkthrough</button>
+                  ) : (
+                    <a className="btn btn-outline btn-xl" href="#/" onClick={go("evidence")}>See the evidence</a>
+                  )}
+                </div>
+                <p className="hero-under rise" style={{ "--d": "450ms" }}>
+                  {live ? "Test money only. You play buyer and merchant; nothing to install." : "Example records in your browser. No account, no money."}{" "}
+                  <a className="text-link" href="#/start">Every step, in order</a>
+                  {import.meta.env.DEV && mode !== "backend" && <button className="text-link" onClick={connect}>Use local services instead</button>}
+                </p>
                 {connectionError && <p className="inline-banner" data-tone="failed" role="alert">Local services are not reachable. Start them with <code>npm run demo:ui</code>, or use the walkthrough.</p>}
               </div>
+              <HeroStage step={seq.step} />
             </div>
-            <HeroLine />
+            <HeroLine {...seq} />
           </div>
         </section>
 
@@ -410,31 +535,96 @@ export function Landing({ openDemo, connect, connectionError, mode }) {
           <div className="lp-wrap">
             <div className="cols closing-top">
               <div className="c8">
-                <p className="eyebrow">Three-minute demo</p>
-                <h2>Watch a paid video come back from <em>“failed.”</em></h2>
+                <p className="eyebrow">Three minutes · test money only</p>
+                <h2>Run the <span className="num">$50</span> → <span className="num">$40</span> case <em>yourself.</em></h2>
+                <p className="lead">Ten clips ordered, eight delivered, one of them recovered. One capture for what arrived; the rest of the hold is never taken.</p>
               </div>
               <div className="c4 closing-actions">
-                <button className="btn btn-proof btn-xl" onClick={openDemo}>Follow the recovery<ArrowRightIcon size={16} aria-hidden="true" /></button>
-                <a className="btn btn-outline btn-xl" {...workspace}>Open the merchant workspace<ArrowUpRightIcon size={16} aria-hidden="true" /></a>
+                {live ? (
+                  <a className="btn btn-proof btn-xl" href={LIVE_DEMO_HREF}><span>Run it live on <PayPalLogo size="md" /> Sandbox</span><ArrowRightIcon size={16} aria-hidden="true" /></a>
+                ) : (
+                  <button className="btn btn-proof btn-xl" onClick={openDemo}>Follow the recovery<ArrowRightIcon size={16} aria-hidden="true" /></button>
+                )}
+                {live ? (
+                  <button className="btn btn-outline btn-xl" onClick={openDemo}>Watch the walkthrough first<ArrowUpRightIcon size={16} aria-hidden="true" /></button>
+                ) : (
+                  <a className="btn btn-outline btn-xl" {...workspace}>Open the merchant workspace<ArrowUpRightIcon size={16} aria-hidden="true" /></a>
+                )}
                 <a className="btn btn-ghost btn-xl" href="#/" onClick={go("evidence")}>See what has been run<ArrowUpRightIcon size={16} aria-hidden="true" /></a>
               </div>
             </div>
             <ProofLine stations={AFTER} animate />
+            <div className="gets">
+              <div>
+                <p className="eyebrow">What a merchant gets</p>
+                <ul>
+                  <li><CheckIcon size={15} weight="bold" aria-hidden="true" />Clips that were made but lost are found before anyone pays to render them again.</li>
+                  <li><CheckIcon size={15} weight="bold" aria-hidden="true" />One PayPal capture for what the buyer can open, approved by you.</li>
+                  <li><CheckIcon size={15} weight="bold" aria-hidden="true" />A signed per-clip statement to answer a buyer or a dispute.</li>
+                </ul>
+              </div>
+              <div>
+                <p className="eyebrow">What it costs</p>
+                <p className="gets-price display">No price list yet.</p>
+                <p>Assay is a Sandbox build. Trying it is free and uses test money. Pilot terms would be agreed with each merchant; nothing here is an offer.</p>
+              </div>
+            </div>
           </div>
         </section>
       </main>
 
       <footer className="landing-footer">
         <div className="lp-wrap">
-          <Brand />
-          <p>Investigates whether paid AI work was delivered, recovers what exists, and proves the charge is right.</p>
-          <nav aria-label="Footer">
-            <button onClick={openDemo}>Walkthrough</button>
-            <a href="#/start">Start here</a>
+          <div className="lf-top">
+            <div className="lf-brand">
+              <Brand />
+              <p>Finds paid AI work that was made but never delivered, restores it, and charges once for what arrived.</p>
+              <p className="lf-status" data-live={live || undefined}>
+                <span aria-hidden="true" />
+                {live ? "Sandbox is live" : "PayPal Sandbox only"} · last recorded capture 12 Nov 2026 ·{" "}
+                <a href={FILE("backend/evidence/hosted-sandbox-run.json")} target="_blank" rel="noopener noreferrer">record</a>
+              </p>
+            </div>
+            <nav aria-label="Product">
+              <p className="eyebrow">Product</p>
+              {live ? <a href={LIVE_DEMO_HREF}>Live Sandbox</a> : <a href="#/start">Start here</a>}
+              <button onClick={openDemo}>Walkthrough</button>
+              <a href="#/" onClick={go("evidence")}>Evidence</a>
+              <a href="#/signup">Create an account</a>
+            </nav>
+            <nav aria-label="Developers">
+              <p className="eyebrow">Developers</p>
+              <a href={REPO} target="_blank" rel="noopener noreferrer">GitHub</a>
+              <a href={FILE("backend/docs/API.md")} target="_blank" rel="noopener noreferrer">API</a>
+              <a href={FILE("backend/docs/postman/assay-merchant.postman_collection.json")} target="_blank" rel="noopener noreferrer">Postman collection</a>
+              <a href={FILE("backend/sdk/README.md")} target="_blank" rel="noopener noreferrer">Node SDK</a>
+              <a href={FILE("backend/src/mcp/server.ts")} target="_blank" rel="noopener noreferrer">MCP server</a>
+            </nav>
+            <nav aria-label="Proof">
+              <p className="eyebrow">Proof</p>
+              <a href={FILE("backend/evidence/hosted-sandbox-run.json")} target="_blank" rel="noopener noreferrer">Hosted run</a>
+              <a href={FILE("backend/docs/SECURITY_REVIEW.md")} target="_blank" rel="noopener noreferrer">Security review</a>
+              <a href={FILE("backend/docs/ARCHITECTURE.md")} target="_blank" rel="noopener noreferrer">Architecture</a>
+              <a href="#/privacy">Privacy and retention</a>
+            </nav>
+          </div>
+          <div className="lf-built">
+            <p className="eyebrow">Built with</p>
+            <ul>
+              <li><PayPalLogo size="md" /><span>holds, captures, webhooks</span></li>
+              <li><strong>KERNEL</strong><span>outside playback check</span></li>
+              <li><strong>Postman</strong><span>API collection and runs</span></li>
+              <li><strong>Bryntum</strong><span>recovery window</span></li>
+              <li><strong>AG Grid</strong><span>dashboard</span></li>
+              <li><strong>APIMatic</strong><span>PayPal contract review</span></li>
+              <li><strong>Render</strong><span>static page hosting</span></li>
+            </ul>
+          </div>
+          <p className="lf-sign" aria-hidden="true">Paid. Made. Delivered. <em>Proven.</em></p>
+          <div className="lf-base">
+            <p className="eyebrow">A PayPal AI Hackathon 2026 entry · test money only · no live payments</p>
             <a href="#/signin">Sign in</a>
-            <a href="#/privacy">Privacy and retention</a>
-          </nav>
-          <p className="eyebrow">A PayPal AI Hackathon 2026 entry · settles through <PayPalLogo size="sm" /> Sandbox only</p>
+          </div>
         </div>
       </footer>
     </div>

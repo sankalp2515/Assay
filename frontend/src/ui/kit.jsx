@@ -274,3 +274,14 @@ export const clock = (value) =>
   value && Number.isFinite(Date.parse(value))
     ? new Date(value).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false })
     : "—";
+
+/** A visible wait state: says what is loading, with a moving bar. */
+export function LoadingCard({ label, note, className = "" }) {
+  return (
+    <section className={`sheet loading-card ${className}`} aria-busy="true">
+      <p className="loading-label" role="status">{label}</p>
+      {note && <p className="loading-note">{note}</p>}
+      <span className="loading-bar" aria-hidden="true"><span /></span>
+    </section>
+  );
+}

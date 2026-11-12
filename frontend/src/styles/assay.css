@@ -462,3 +462,50 @@ input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea {
 .agreement-form .editor-section + .editor-section { border-top: 1px solid var(--rule); }
 .settings-facts { background: var(--card); }
 .flow-heading h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(2.4rem, 4.2vw, 3.4rem); line-height: 0.98; letter-spacing: -0.015em; }
+
+/* Wait states that say what is loading. */
+.loading-card { display: grid; gap: 10px; padding: 28px 24px; min-height: 160px; align-content: center; }
+.loading-label { margin: 0; font-family: var(--font-display); font-size: 24px; line-height: 1.1; }
+.loading-note { margin: 0; font-size: 13px; color: var(--muted); }
+.loading-bar { display: block; height: 3px; max-width: 320px; border-radius: 2px; background: var(--rule); overflow: hidden; }
+.loading-bar span { display: block; width: 40%; height: 100%; border-radius: 2px; background: var(--proof); animation: loading-slide 1.4s var(--ease-draw) infinite; }
+@keyframes loading-slide { from { transform: translateX(-110%); } to { transform: translateX(260%); } }
+.dash-studio { position: relative; }
+.dash-wait { position: absolute; inset: 0; z-index: 2; border: 0; box-shadow: none; }
+.live-line { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 13px; color: var(--muted); }
+.expiry-warn { margin: 0; font-weight: 500; }
+.expiry-warn:empty { display: none; }
+.inline-banner .btn { vertical-align: middle; margin-inline: 4px; }
+@media (prefers-reduced-motion: reduce) { .loading-bar span { animation: none; width: 100%; opacity: 0.5; } }
+
+/* Dialogs: eyebrow, serif title, what happens in numbered steps, references in mono. */
+.dialog { padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; border-top: 3px solid var(--proof); }
+.dialog > * { margin-inline: 28px; }
+.dialog > .dialog-header { margin: 0; padding: 24px 28px 4px; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.dialog-header .eyebrow { margin-bottom: 10px; color: var(--proof); }
+.dialog-header h2 { font-size: 34px; text-wrap: balance; }
+.dialog-header h2 em { font-style: italic; }
+.dialog-intro { margin-block: 12px 18px; font-size: 14.5px; line-height: 1.55; }
+.dialog-facts-row { list-style: none; padding: 0; margin-block: 0 22px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--rule); }
+.dialog-facts-row li { display: grid; gap: 4px; padding: 12px 12px 12px 0; }
+.dialog-facts-row li + li { padding-left: 12px; border-left: 1px solid var(--rule); }
+.dialog-facts-row strong { font-size: 14px; font-weight: 500; }
+.dialog-label { margin-block: 0 4px; }
+.dialog-steps { list-style: none; padding: 0; margin-block: 0 18px; }
+.dialog-steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.dialog-steps .num { font-size: 12px; color: var(--proof); padding-top: 2px; }
+.dialog-steps strong { font-size: 14px; font-weight: 500; }
+.dialog-steps p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.dialog-refs { margin-block: 0 4px; display: grid; gap: 6px; }
+.dialog-refs div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; font-size: 12.5px; }
+.dialog-refs dt { color: var(--muted); }
+.dialog-refs dd { margin: 0; font-size: 11.5px; overflow-wrap: anywhere; }
+.dialog > .dialog-actions { margin: 20px 0 0; padding: 16px 28px; border-top: 1px solid var(--rule); background: var(--paper-deep); position: sticky; bottom: 0; }
+.dialog > .dialog-foot { margin: 0; padding: 0 28px 16px; background: var(--paper-deep); font-size: 12px; color: var(--muted); text-align: right; }
+.dialog[open] { animation: dialog-in 0.22s var(--ease-out) both; }
+.dialog[open]::backdrop { animation: fade-in 0.2s ease both; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+@media (max-width: 560px) { .dialog-facts-row { grid-template-columns: minmax(0, 1fr); } .dialog-facts-row li + li { padding-left: 0; border-left: 0; border-top: 1px solid var(--rule); } .dialog-header h2 { font-size: 28px; } }
+@media (prefers-reduced-motion: reduce) { .dialog[open] { animation: fade-in 0.15s ease both; } }
+.assay-foot nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.assay-foot { align-items: center; }

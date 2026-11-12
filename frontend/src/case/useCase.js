@@ -7,6 +7,21 @@ import { recoveryReceipts, sha256Hex } from "./model.js";
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const HARD = [401, 403, 404];
+// Records that are still moving. While any is present the page rereads itself.
+const MOVING_FILE = ["COPYING", "PENDING", "VALIDATING", "QUEUED", "RESERVED"];
+const MOVING_TASK = ["RUNNING", "PENDING", "SUBMITTED", "QUEUED", "PROCESSING", "REGISTERED"];
+const BEFORE_HOLD = ["ACCEPTED", "AWAITING_BUYER_APPROVAL", "AUTHORIZING"];
+
+/** True while a provider task is running or a finished task's file is not archived yet. */
+export function stillArchiving(data) {
+  if (!data || data.batch?.state === "CLOSED") return false;
+  const files = [...(data.artifacts || []), ...(data.review?.artifacts || [])];
+  if (files.some((a) => MOVING_FILE.includes(a.state))) return true;
+  const attempts = data.review?.attempts || [];
+  if (attempts.some((a) => MOVING_TASK.includes(a.state))) return true;
+  const stored = new Set(files.map((a) => a.unit_id));
+  return attempts.some((a) => a.state === "SUCCEEDED" && !stored.has(a.unit_id));
+}
 
 export function useCase(id, role = "operator") {
   const root = `/v1/batches/${encodeURIComponent(id)}`;
@@ -24,6 +39,9 @@ export function useCase(id, role = "operator") {
   const approveIntent = useRef(null);
   const mounted = useRef(true);
   const busyRef = useRef(false);
+  // Set once the service has said there is no investigation yet, so later reads of an
+  // uninvestigated delivery do not ask again (and log a 404) on every refresh.
+  const noInvestigation = useRef(false);
 
   const load = useCallback(async () => {
     const [batch, outcomes, review] = await Promise.all([
@@ -43,15 +61,24 @@ export function useCase(id, role = "operator") {
         if ([401, 403].includes(e.status)) throw e;
         return typeof fallback === "function" ? fallback(e) : fallback;
       });
+    const operations0 = outcomes.operations || [];
+    // A statement exists only once a capture or release has been requested; an
+    // investigation only after the hold. Asking earlier is a guaranteed 404.
+    const mayHaveStatement =
+      ["CLOSED", "SETTLEMENT_REQUESTED", "CLAIMED"].includes(batch.state) ||
+      operations0.some((o) => ["CAPTURE", "VOID"].includes(o.kind));
+    const mayHaveInvestigation =
+      !BEFORE_HOLD.includes(batch.state) &&
+      !(noInvestigation.current && ["AUTHORIZED", "RUNNING"].includes(batch.state));
     const [financials, activity, statement, assessment, status] =
       await Promise.all([
         optional("/financials", { unavailable: true }),
         optional("/activity", { events: [] }),
-        optional("/statement", null),
-        role === "operator"
+        mayHaveStatement ? optional("/statement", null) : null,
+        role === "operator" && mayHaveInvestigation
           ? optional("/investigation", (e) =>
               e.status === 404
-                ? null
+                ? ((noInvestigation.current = true), null)
                 : {
                     state: "WAITING_FOR_AI",
                     unavailable: true,
@@ -113,6 +140,40 @@ export function useCase(id, role = "operator") {
     };
   }, [load, id]);
 
+  // While clips are still archiving, reread the delivery every three seconds. Only the
+  // batch, its outcomes and the provider review are read; nothing is written.
+  const moving = stillArchiving(data);
+  const runningAssessment = ["RESERVED", "RUNNING"].includes(data?.assessment?.state);
+  useEffect(() => {
+    if (!moving && !runningAssessment) return;
+    let ticks = 0;
+    const timer = setInterval(async () => {
+      if (busyRef.current || document.hidden) return;
+      if (++ticks > 100) return clearInterval(timer);
+      try {
+        if (runningAssessment) return void (await load());
+        const [batch, outcomes, review] = await Promise.all([
+          request(root, { role }),
+          request(root + "/outcomes", { role }),
+          role === "operator" ? request(root + "/review").catch(() => null) : null,
+        ]);
+        if (!mounted.current || !Array.isArray(outcomes.artifacts)) return;
+        let settled = false;
+        setData((d) => {
+          if (!d) return d;
+          const next = { ...d, batch, outcomes, artifacts: outcomes.artifacts, operations: outcomes.operations || [], review: review || d.review };
+          settled = !stillArchiving(next);
+          return next;
+        });
+        // One full read once everything has landed, to pick up what followed from it.
+        if (settled) load().catch(() => {});
+      } catch {
+        /* A missed poll is harmless; the next one tries again. */
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [moving, runningAssessment, load, root, role]);
+
   async function act(name, fn) {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -130,6 +191,7 @@ export function useCase(id, role = "operator") {
   }
 
   async function runInvestigation(refreshReason) {
+    noInvestigation.current = false;
     let result = await request(root + "/investigate", {
       body: refreshReason ? { refresh_reason: refreshReason } : {},
       intent: `investigate:${id}:${crypto.randomUUID()}`,
@@ -294,6 +356,7 @@ export function useCase(id, role = "operator") {
     data,
     loadError,
     busy,
+    live: moving || runningAssessment,
     error,
     setError,
     notice,

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { studioTheme } from "ag-studio";
 import { AgStudio, AgStudioProvider } from "ag-studio-react";
 import { request } from "../api.js";
-import { stamp } from "../ui/kit.jsx";
+import { stamp, LoadingCard } from "../ui/kit.jsx";
 import { dashboardData } from "./dashboard-model.js";
 import "./dashboard.css";
 
@@ -298,6 +298,7 @@ export default function Dashboard({ envKind }) {
   const model = useMemo(() => (rows ? dashboardData(rows.batch, rows.clip) : null), [rows]);
   const data = useMemo(() => (model ? studioData(model) : null), [model]);
   const [initial, setInitial] = useState(null);
+  const [drawn, setDrawn] = useState(false);
   useEffect(() => {
     if (model && !initial && model.currencies.length) setInitial(report(model.currencies[0]));
   }, [model, initial]);
@@ -318,10 +319,7 @@ export default function Dashboard({ envKind }) {
     );
   if (!model)
     return (
-      <section className="sheet dash-state" aria-busy="true">
-        <div className="skeleton skeleton-block" />
-        <p className="sr-only" role="status">Loading the dashboard…</p>
-      </section>
+      <LoadingCard label="Reading the delivery rows…" />
     );
   if (!model.deliveries.length || !initial)
     return (
@@ -352,7 +350,8 @@ export default function Dashboard({ envKind }) {
           <button className="btn btn-outline btn-sm" onClick={() => setTick((n) => n + 1)}>Refresh</button>
         </div>
       </div>
-      <div className="dash-studio" data-mode={mode}>
+      <div className="dash-studio" data-mode={mode} data-drawn={drawn || undefined}>
+        {!drawn && <LoadingCard className="dash-wait" label="Drawing the dashboard…" />}
         <AgStudioProvider licenseKey={import.meta.env.VITE_AGSTUDIO_LICENSE_KEY || undefined}>
           <AgStudio
             style={{ height: "100%", width: "100%" }}
@@ -363,6 +362,7 @@ export default function Dashboard({ envKind }) {
             mode={mode}
             onApiReady={(e) => {
               api.current = e.api;
+              setDrawn(true);
             }}
             onStateUpdated={(e) => setPage(e.state.selectedPageId)}
           />

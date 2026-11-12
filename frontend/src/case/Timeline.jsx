@@ -8,7 +8,7 @@ import "@bryntum/scheduler-enterprise/scheduler.css";
 import "@bryntum/scheduler-enterprise/svalbard-light.css";
 import "./timeline.css";
 import { request } from "../api.js";
-import { stamp } from "../ui/kit.jsx";
+import { LoadingCard, stamp } from "../ui/kit.jsx";
 import { buildSchedule, describe, eventClass } from "./timeline-model.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -68,10 +68,7 @@ export default function Timeline({ batchId, envKind }) {
     );
   if (!model || !config)
     return (
-      <section className="sheet tl-state" aria-busy="true">
-        <div className="skeleton skeleton-block" />
-        <p className="sr-only" role="status">Loading the timeline…</p>
-      </section>
+      <LoadingCard label="Reading the timeline records…" />
     );
   if (!model.events.length)
     return (

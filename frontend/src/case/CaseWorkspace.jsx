@@ -19,7 +19,7 @@ import { approvalExpired, money, paymentSummary } from "../domain.js";
 import { Notice } from "../ui/Notice.jsx";
 import { AuthorizationHandoff } from "../ui/AuthorizationHandoff.jsx";
 import { ProofLine } from "../ui/ProofLine.jsx";
-import { Chip, Countdown, Modal, Reference, Screening, clock, formatBytes, scrollBehavior, stamp } from "../ui/kit.jsx";
+import { Chip, Countdown, LoadingCard, Modal, Reference, Screening, clock, formatBytes, scrollBehavior, stamp } from "../ui/kit.jsx";
 import { buildStations, buildTimeline, buildUnits, buildUnknowns, clipName, nextStep, stationOf, STATE_WORD } from "./model.js";
 import { useArtifactMedia, useCase } from "./useCase.js";
 import { Thumb, stillFor } from "../ui/stills.jsx";
@@ -559,12 +559,12 @@ function Analysis({ c, ctx, data, openRestore, canAct }) {
 function ExpiryLine({ expiresAt }) {
   const left = Countdown({ expiresAt });
   const [total] = useState(() => Math.max(1, left));
-  const spoken = left > 10 ? `This review expires in ${total} seconds.` : left > 0 ? "This review expires in less than 10 seconds." : "";
+  // One countdown on screen. The only extra announcement is the ten-second warning.
   return (
     <div className="expiry" data-urgent={left <= 10 || undefined}>
-      <p aria-hidden="true">This exact review expires in <strong className="num">{left}</strong> {left === 1 ? "second" : "seconds"}.{left <= 10 && " Approve now, or request a fresh one."}</p>
+      <p>This exact review expires in <strong className="num">{left}</strong> {left === 1 ? "second" : "seconds"}.</p>
       <span className="expiry-bar" aria-hidden="true"><span style={{ width: `${Math.min(100, (left / total) * 100)}%` }} /></span>
-      <p className="sr-only" role="status">{spoken}</p>
+      <p className="expiry-warn" role="status">{left <= 10 && left > 0 ? "Approve now, or request a fresh review." : ""}</p>
     </div>
   );
 }
@@ -785,7 +785,26 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [view]);
+  // The timeline component is large; fetch it while the investigation is being read.
+  useEffect(() => {
+    const t = setTimeout(() => import("./Timeline.jsx").catch(() => {}), 1200);
+    return () => clearTimeout(t);
+  }, []);
+  // A link to a delivery this workspace does not have (an old link, another demo
+  // workspace) goes to the command center with a short note, not an error screen.
+  const missing = c.loadError?.status === 404;
+  useEffect(() => {
+    if (!missing) return;
+    try {
+      sessionStorage.setItem("assay-flash", "That delivery is not in this workspace, so the link was dropped. Your deliveries are listed here.");
+      sessionStorage.removeItem("assay-case");
+    } catch {
+      /* The redirect still happens. */
+    }
+    window.location.hash = "/batches";
+  }, [missing]);
 
+  if (missing) return <main id="main" className="case-page" aria-busy="true"><LoadingCard label="Opening the command center…" /></main>;
   if (c.loadError)
     return (
       <main id="main" className="case-page">
@@ -815,6 +834,7 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
 
   const ctx = derived;
   const canAct = !data.financials?.unavailable && ["AUTHORIZED", "RUNNING", "INVESTIGATED", "READY_FOR_REVIEW", "WAITING_FOR_AI"].includes(batch.state);
+  const needsReading = !(data.assessment?.state === "VALID" && data.assessment.current !== false);
   const props = { c, ctx, data, canAct, envKind, openRestore: setRestoreTarget };
   return (
     <main id="main" className="case-page">
@@ -825,11 +845,22 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
         <button className="icon-button bordered" aria-label="Refresh records" title="Refresh records" disabled={!!c.busy} onClick={c.refresh}><ArrowClockwiseIcon size={16} /></button>
       </CaseHeader>
       {data.review?.unavailable && <p className="inline-banner" data-tone="pending">Provider and archive records are temporarily unavailable. Published files remain available to the buyer.</p>}
+      {c.live && <p className="live-line" role="status"><SpinnerGapIcon size={14} className="spin" aria-hidden="true" />Clips are still archiving. This page updates itself every few seconds.</p>}
       {c.error && !restoreTarget && view !== "settlement" && (
-        <p className="inline-banner" data-tone="failed" role="alert"><span>{c.error}</span> <button className="text-link" onClick={() => c.setError("")}>Dismiss</button></p>
+        <p className="inline-banner" data-tone="failed" role="alert">
+          <span>{c.error}</span>{" "}
+          {needsReading && canAct && <button className="btn btn-outline btn-sm" disabled={!!c.busy} onClick={() => c.investigate()}>Investigate again</button>}{" "}
+          <button className="text-link" onClick={() => c.setError("")}>Dismiss</button>
+        </p>
+      )}
+      {!c.error && data.assessment?.state === "WAITING_FOR_AI" && canAct && (
+        <p className="inline-banner" data-tone="pending" role="status">
+          <span>The AI reading did not finish, so the evidence has no current assessment. Files, payment history and reconciliation still work.</span>{" "}
+          <button className="btn btn-outline btn-sm" disabled={!!c.busy} onClick={() => c.investigate()}>{c.busy ? `${c.busy}…` : "Investigate again"}</button>
+        </p>
       )}
       {view === "timeline" ? (
-        <Suspense fallback={<section className="sheet tl-state" aria-busy="true"><div className="skeleton skeleton-block" /></section>}>
+        <Suspense fallback={<LoadingCard label="Loading the recovery window…" note="The timeline component is about 1 MB. It is fetched once, then kept." />}>
           <Timeline batchId={batch.id} envKind={envKind} />
         </Suspense>
       ) : view === "analysis" ? <Analysis {...props} /> : view === "settlement" ? <Settlement {...props} /> : view === "record" ? <Record {...props} /> : <Investigation {...props} />}
@@ -838,21 +869,31 @@ export function CaseWorkspace({ id, view = "", environment, envKind }) {
       <Notice message={c.notice} onClose={() => c.setNotice("")} />
 
       {restoreTarget && (
-        <Modal eyebrow="Merchant approval" title={`Restore the original for ${clipName(restoreTarget.index).toLowerCase()}`} onClose={() => !c.busy && setRestoreTarget(null)}>
-          <p className="dialog-intro">This publishes a file that already exists. No new render is requested and no money moves.</p>
-          <ol className="consequence-list">
-            <li>The archived original is published to the assigned buyer only.</li>
-            <li>The buyer route is fetched and checked against the archived digest.</li>
-            <li>The evidence is reassessed, because publication changes the records.</li>
+        <Modal eyebrow={`Merchant approval · ${clipName(restoreTarget.index)}`} title={<>Give the buyer <em>the file that already exists.</em></>} onClose={() => !c.busy && setRestoreTarget(null)}>
+          <p className="dialog-intro">The provider finished this clip and Assay archived it. Only the hand-off to the buyer was lost.</p>
+          <ul className="dialog-facts-row">
+            <li><span className="eyebrow">New render</span><strong>None</strong></li>
+            <li><span className="eyebrow">Money moved</span><strong>None</strong></li>
+            <li><span className="eyebrow">Who can open it</span><strong>The assigned buyer</strong></li>
+          </ul>
+          <p className="eyebrow dialog-label">What happens when you approve</p>
+          <ol className="dialog-steps">
+            <li><span className="num">01</span><div><strong>Publish the archived original</strong><p>To the assigned buyer only, on their private route.</p></div></li>
+            <li><span className="num">02</span><div><strong>Fetch it the way the buyer will</strong><p>The bytes are compared with the archived SHA-256 digest.</p></div></li>
+            <li><span className="num">03</span><div><strong>Read the evidence again</strong><p>Publication changes the records, so the investigation is refreshed.</p></div></li>
           </ol>
-          <p><span className="source">{restoreTarget.attempt?.provider_task_id || "task"}</span> <span className="source">{restoreTarget.artifact?.id}</span></p>
+          <dl className="dialog-refs">
+            <div><dt>Provider task</dt><dd className="num">{restoreTarget.attempt?.provider_task_id || "not recorded"}</dd></div>
+            <div><dt>Archived file</dt><dd className="num">{restoreTarget.artifact?.id || "not recorded"}</dd></div>
+          </dl>
           {c.error && <p className="inline-error" role="alert">{c.error}</p>}
           <div className="dialog-actions">
-            <button className="btn btn-outline" disabled={!!c.busy} onClick={() => setRestoreTarget(null)}>Cancel</button>
-            <button className="btn btn-proof" disabled={!!c.busy} onClick={async () => { const receipt = await c.restore(restoreTarget.id); if (receipt !== undefined) setRestoreTarget(null); }}>
-              {c.busy ? <><SpinnerGapIcon size={16} className="spin" aria-hidden="true" />{c.busy}…</> : "Restore original file"}
+            <button className="btn btn-outline" disabled={!!c.busy} onClick={() => setRestoreTarget(null)}>Not now</button>
+            <button className="btn btn-proof btn-lg" disabled={!!c.busy} onClick={async () => { const receipt = await c.restore(restoreTarget.id); if (receipt !== undefined) setRestoreTarget(null); }}>
+              {c.busy ? <><SpinnerGapIcon size={16} className="spin" aria-hidden="true" />{c.busy}…</> : "Approve the restore"}
             </button>
           </div>
+          <p className="dialog-foot">Capturing money is a separate approval on the Settlement page.</p>
         </Modal>
       )}
     </main>

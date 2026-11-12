@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import("./ops/Dashboard.jsx"));
 import { DEMO_BATCH_ID } from "./demo/simulator.js";
 import {
   currentSession,
+  demoLoginAvailable,
   request,
   signOut,
   buyerDirectory,
@@ -45,7 +46,7 @@ import {
 import { coarseStations, deliveryStage, filterDeliveries } from "./ui/delivery-view.js";
 import { ProofLine } from "./ui/ProofLine.jsx";
 import { ProductShell } from "./ui/ProductShell.jsx";
-import { Chip, Reference, stamp } from "./ui/kit.jsx";
+import { Chip, LoadingCard, Reference, stamp } from "./ui/kit.jsx";
 import { PayPalLogo } from "./ui/PayPalLogo.jsx";
 
 const OP_TONE = {
@@ -253,6 +254,15 @@ function BatchQueue({ demo, connect, payments = false }) {
   const heldCurrencies = [...new Set(held.map((b) => b.currency || "USD"))];
   const heldOpen = heldCurrencies.length === 1 ? held.reduce((n, b) => n + b.ceiling_minor, 0) : 0;
   const first = attention[0] || open[0];
+  const [flash, setFlash] = useState(() => {
+    try {
+      const note = sessionStorage.getItem("assay-flash") || "";
+      sessionStorage.removeItem("assay-flash");
+      return note;
+    } catch {
+      return "";
+    }
+  });
   return (
     <Page
       eyebrow={payments ? "Payment records" : `Command center · ${open.length} open ${open.length === 1 ? "delivery" : "deliveries"}`}
@@ -294,6 +304,11 @@ function BatchQueue({ demo, connect, payments = false }) {
         )
       }
     >
+      {flash && (
+        <p className="inline-banner" data-tone="pending" role="status">
+          <span>{flash}</span> <button className="text-link" onClick={() => setFlash("")}>Dismiss</button>
+        </p>
+      )}
       {!payments && data.data && (
         <dl className="metrics">
           <div data-tone="broken">
@@ -2182,7 +2197,9 @@ export function Workspace() {
     [mode, setModeState] = useState(
       () => sessionStorage.getItem("pvd-mode") || DEFAULT_MODE,
     ),
-    [connectionError, setConnectionError] = useState(null);
+    [connectionError, setConnectionError] = useState(null),
+    // True once the hosted gateway has said it offers a one-click Sandbox workspace.
+    [live, setLive] = useState(false);
   const setMode = (next) => {
     sessionStorage.setItem("pvd-mode", next);
     setModeState(next);
@@ -2195,6 +2212,7 @@ export function Workspace() {
     window.addEventListener("hashchange", listener);
     currentSession()
       .then((s) => {
+        setLive(demoLoginAvailable());
         if (s) {
           setSession(s);
           setMode("backend");
@@ -2287,6 +2305,7 @@ export function Workspace() {
         connectionError={connectionError}
         mode={mode}
         openDemo={openDemo}
+        live={live}
       />
     );
   if (parts[0] === "start")
@@ -2375,7 +2394,7 @@ export function Workspace() {
         title={<>Every delivery, <em>and what it settled to.</em></>}
         description="Clips ordered, delivered and recovered, and how each PayPal hold was split. Rearrange it or add your own widgets."
       >
-        <Suspense fallback={<section className="sheet dash-state" aria-busy="true"><div className="skeleton skeleton-block" /></section>}>
+        <Suspense fallback={<LoadingCard label="Loading the dashboard…" note="The dashboard component is about 1.5 MB. It is fetched once, then kept." />}>
           <Dashboard envKind={envKind} />
         </Suspense>
       </Page>
