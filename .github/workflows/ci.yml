@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:sites
+      - run: npm run build
+
+  packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run package:release
+      - name: Install and verify the packed SDK and MCP CLI
+        run: |
+          smoke=$(mktemp -d)
+          npm install --prefix "$smoke" --no-audit --no-fund "$PWD"/dist/release/*.tgz
+          cd "$smoke"
+          node --input-type=module -e 'import { Assay, verifyWebhook } from "@sankalp2515/assay-node"; if (typeof Assay !== "function" || typeof verifyWebhook !== "function") process.exit(1);'
+          status=0
+          ./node_modules/.bin/assay-mcp >mcp.log 2>&1 || status=$?
+          test "$status" -eq 2
+          grep -Fx 'Set ASSAY_API_KEY and ASSAY_BASE_URL' mcp.log
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+          import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+
+          const client = new Client({ name: 'assay-ci', version: '0.1.0' });
+          await client.connect(new StdioClientTransport({
+            command: './node_modules/.bin/assay-mcp',
+            env: { ASSAY_API_KEY: 'assay_sk_fixture', ASSAY_BASE_URL: 'https://example.invalid' },
+          }));
+          try {
+            const { tools } = await client.listTools();
+            assert.ok(tools.some(({ name }) => name === 'assay_register_task'));
+            assert.ok(!tools.some(({ name }) => /approve|refund|cancel|key/.test(name)));
+          } finally {
+            await client.close();
+          }
+          NODE
+
+  docker-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - run: docker compose -f infra/compose.demo.yaml run --rm demo

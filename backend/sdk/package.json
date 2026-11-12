@@ -1,8 +1,9 @@
 {
-  "name": "@assay/node",
+  "name": "@sankalp2515/assay-node",
   "version": "0.1.0",
   "description": "Server-side client for Assay: recover AI-video output and settle through PayPal for exactly what was delivered.",
   "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/sankalp2515/Assay.git", "directory": "backend/sdk" },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

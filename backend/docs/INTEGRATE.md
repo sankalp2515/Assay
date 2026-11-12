@@ -18,7 +18,7 @@ You keep your provider, your prompts and your generation code. Assay sits beside
 
 Assay never generates on Replicate or a reported provider. It only reads the task you registered. On Runway, generation from Assay is off unless `ALLOW_PAID_INFERENCE=true` and capped.
 
-The `@assay/node` SDK in `backend/sdk` wraps every call below, requires idempotency keys and verifies webhooks.
+The [`@sankalp2515/assay-node` SDK](../sdk/README.md) wraps every call below, requires idempotency keys and verifies webhooks.
 
 ## Step 1: open a batch when the buyer checks out
 
@@ -109,7 +109,6 @@ Each request has the headers `Assay-Event-Id`, `Assay-Event-Type` and `Assay-Sig
 - **Your responsibility:** registering tasks when you submit them (step 2) and keeping `REPORTED_OUTPUT_HOSTS` tight.
 - **Not yet available:**
   - A production deployment. The hosted PayPal Sandbox deployment is at https://assay-34-59-154-73.sslip.io; [DEPLOY.md](DEPLOY.md) describes it.
-  - The SDK on npm.
   - Real PayPal partner approval, which a deployment where each merchant connects their own PayPal account needs.
 
 ## Optional: archive the moment Replicate finishes

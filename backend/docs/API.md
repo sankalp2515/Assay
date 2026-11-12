@@ -134,7 +134,7 @@ These need `PAYPAL_PARTNER_MODE=true`. Without it, every tenant uses the platfor
 - `ARTIFACT_STORE=gcs` with `GCS_BUCKET` stores originals in a private bucket.
 - `AI_PRIMARY=vertex`, or `vertex` listed in `AI_FALLBACK_PROVIDERS`, plus `VERTEX_PROJECT` and `VERTEX_CREDITS_CONFIRMED=true`, calls Gemini on Vertex AI as the Cloud service account.
 
-**SDK.** `backend/sdk` is `@assay/node`, a dependency-free TypeScript client. It requires idempotency keys on every write and includes `verifyWebhook`.
+**SDK.** `backend/sdk` is `@sankalp2515/assay-node`, a dependency-free TypeScript client. It requires idempotency keys on every write and includes `verifyWebhook`.
 
 **Normal delivery (12 November).**
 

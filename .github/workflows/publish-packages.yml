@@ -1,0 +1,49 @@
+name: Publish GitHub Packages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-github-packages
+
+jobs:
+  publish:
+    if: github.repository == 'sankalp2515/Assay' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '22'
+          registry-url: https://npm.pkg.github.com
+          scope: '@sankalp2515'
+      - run: npm ci
+      - run: npm run package:release
+      - name: Publish versioned SDK and MCP packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for package in sdk mcp; do
+            spec=$(node -p 'const p = require("./" + process.argv[1] + "/package.json"); p.name + "@" + p.version' "$package")
+            if npm view "$spec" version --registry https://npm.pkg.github.com; then
+              echo "$spec already published"
+              continue
+            fi
+            name=${spec%@*}
+            version=${spec##*@}
+            archive=${name#@}
+            archive=${archive/\//-}
+            npm publish "dist/release/$archive-$version.tgz" --registry https://npm.pkg.github.com
+          done

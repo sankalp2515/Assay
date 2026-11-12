@@ -1,11 +1,15 @@
-# @assay/node
+# @sankalp2515/assay-node
 
 Server-side TypeScript client for Assay. It has no dependencies and needs Node 20 or newer.
+
+```sh
+npm install https://github.com/sankalp2515/Assay/releases/download/v0.1.0/sankalp2515-assay-node-0.1.0.tgz
+```
 
 Keep your secret key on your server. Your buyer's browser gets a buyer session token instead: one buyer, one batch, 30 minutes.
 
 ```ts
-import { Assay, verifyWebhook } from "@assay/node";
+import { Assay, verifyWebhook } from "@sankalp2515/assay-node";
 
 const assay = new Assay({ apiKey: process.env.ASSAY_API_KEY!, baseUrl: "https://assay.example.com" });
 
@@ -51,4 +55,4 @@ Rotate a key by creating the new one, deploying it, then calling `apiKeys.revoke
 
 Errors are thrown as `AssayError` with `status`, `code`, `retryable` and `traceId`. Retry a write only with the same idempotency key.
 
-Build it with `npm run build` in this folder. The SDK is not published to npm yet.
+To build from a source checkout, run `npm ci` in `backend/` and `npm run build` in `backend/sdk/`.

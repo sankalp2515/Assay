@@ -40,7 +40,8 @@
     "frontend:sandbox": "tsx scripts/frontend-sandbox.ts",
     "postman:run": "tsx scripts/postman-run.ts",
     "check:kernel": "tsx scripts/check-kernel-playback.ts",
-    "mcp": "tsx src/mcp/server.ts"
+    "mcp": "tsx src/mcp/server.ts",
+    "package:release": "node scripts/package-release.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.3.14",

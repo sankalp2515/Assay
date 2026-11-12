@@ -4,6 +4,7 @@
 !/.gitignore
 !/.gitattributes
 !/.dockerignore
+!/.github/
 !/README.md
 !/LICENSE
 !/DESIGN.md

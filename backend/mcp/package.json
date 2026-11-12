@@ -1,0 +1,15 @@
+{
+  "name": "@sankalp2515/assay-mcp",
+  "version": "0.1.0",
+  "description": "Assay MCP server for registering video work and inspecting delivery evidence.",
+  "license": "MIT",
+  "type": "module",
+  "repository": { "type": "git", "url": "git+https://github.com/sankalp2515/Assay.git", "directory": "backend/mcp" },
+  "bin": { "assay-mcp": "cli.mjs" },
+  "files": ["cli.mjs", "src/mcp/server.js", "sdk/src/index.js"],
+  "engines": { "node": ">=22.20.0" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
+  }
+}
