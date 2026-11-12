@@ -90,9 +90,12 @@ const children = services.map((name, index) => {
                   "SIGNUP_MODE",
                   "SIGNUP_INVITE_CODE",
                   "SIGNUP_RATE_PER_HOUR",
+                  "REPLICATE_WEBHOOK_SECRET",
+                  "PUBLIC_ORIGIN",
                   "DEMO_SIMULATOR",
                   "DEMO_WORKSPACES",
                   "DEMO_CLIP_URL",
+                  "DEMO_CLIP_URLS",
                 ]
               : [];
   for (const key of specific) if (process.env[key]) env[key] = process.env[key];

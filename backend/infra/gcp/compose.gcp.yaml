@@ -8,6 +8,7 @@ services:
   commerce:
     environment:
       BUYER_RETURN_BASE: https://${ASSAY_DOMAIN:?Set ASSAY_DOMAIN}
+      PUBLIC_ORIGIN: https://${ASSAY_DOMAIN}
       # The gateway limits sign-up per visitor; Commerce sees only the gateway's address.
       SIGNUP_RATE_PER_HOUR: ${SIGNUP_RATE_PER_HOUR:-100}
       # Each demo visitor gets a fresh case: the demo provider reports a public test clip
@@ -15,7 +16,7 @@ services:
       DEMO_SIMULATOR: ${DEMO_SIMULATOR:-true}
       DEMO_WORKSPACES: ${DEMO_WORKSPACES:-true}
       # A real LTX-Video clip (see gcp/media/lighthouse-ltx.provenance.json).
-      DEMO_CLIP_URL: ${DEMO_CLIP_URL:-https://${ASSAY_DOMAIN}/demo-media/lighthouse-ltx.mp4}
+      DEMO_CLIP_URLS: ${DEMO_CLIP_URLS:-https://${ASSAY_DOMAIN}/demo-media/lighthouse-ltx.mp4,https://${ASSAY_DOMAIN}/demo-media/beach-ltx.mp4}
   provider:
     environment:
       REPORTED_OUTPUT_HOSTS: ${ASSAY_DOMAIN}

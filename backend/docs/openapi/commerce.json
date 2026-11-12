@@ -2383,6 +2383,51 @@
           }
         }
       }
+    },
+    "/v1/connect/replicate": {
+      "post": {
+        "summary": "/v1/connect/replicate",
+        "tags": [
+          "commerce"
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/providers/replicate/webhook/{hook}": {
+      "post": {
+        "summary": "Replicate prediction webhook (Standard Webhooks signature)",
+        "tags": [
+          "commerce"
+        ],
+        "security": [],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "hook",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Default Response"
+          }
+        }
+      }
     }
   },
   "security": [

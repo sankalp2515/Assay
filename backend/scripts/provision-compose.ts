@@ -93,6 +93,7 @@ if (!existing || process.argv.includes("--sync-integrations")) {
     "APPROVAL_WINDOW_SECONDS",
     "BUYER_RETURN_BASE",
     "SIGNUP_MODE",
+    "REPLICATE_WEBHOOK_SECRET",
     "SIGNUP_INVITE_CODE",
     "PAYPAL_PARTNER_MODE",
     "PAYPAL_PARTNER_ATTRIBUTION_ID",

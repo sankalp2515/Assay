@@ -4,6 +4,7 @@ import type { Context } from "../core/context.js";
 import { endpoint } from "../core/http.js";
 import { token } from "../core/auth.js";
 import { emitEvent } from "../core/webhooks.js";
+import { indexTask } from "./connectors.js";
 import { buyerReturnLocation } from "../core/buyer-return.js";
 import { Problem, requireThat } from "../core/errors.js";
 import {
@@ -446,6 +447,9 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
           attempt_id: String(response.id),
           ...(deliver ? { deliver: true } : {}),
         });
+      // Lets a provider's completion webhook find this task (src/services/connectors.ts).
+      if (input.provider_task_id)
+        await indexTask(ctx, q, a.tenant, input.source ?? "runway", input.provider_task_id, b.id, String(response.id), !!deliver);
       return { ...old, state: "RUNNING", version: old.version + 1 };
     });
     return {
@@ -1177,8 +1181,12 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     ["operator"],
     async (a, _raw, p) => {
       requireThat(process.env.DEMO_SIMULATOR === "true", "demo_disabled", "The demo provider is not enabled here", 404);
-      const clip = process.env.DEMO_CLIP_URL ?? "";
-      requireThat(/^https:\/\/\S+$/.test(clip), "demo_disabled", "DEMO_CLIP_URL is not configured", 503);
+      // One or more pre-generated clips; units take them in turn so clips look distinct.
+      const clips = (process.env.DEMO_CLIP_URLS || process.env.DEMO_CLIP_URL || "")
+        .split(",")
+        .map((u) => u.trim())
+        .filter(Boolean);
+      requireThat(clips.length > 0 && clips.every((u) => /^https:\/\/\S+$/.test(u)), "demo_disabled", "DEMO_CLIP_URL is not configured", 503);
       const b = await batch(a.tenant, p.batch!);
       requireThat(b.state === "AUTHORIZED", "batch_not_authorized", "Approve the PayPal hold for this batch first");
       const n = b.units.length;
@@ -1194,7 +1202,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
             unit_id: unit.id,
             source: "reported",
             provider_task_id: "demo-" + b.id.slice(0, 8) + "-" + (i + 1),
-            output_url: clip,
+            output_url: clips[i % clips.length],
             deliver_on_archive: i !== lost,
           },
           { batch: b.id },
@@ -1205,7 +1213,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
       return {
         simulated: true,
         label:
-          "Demo provider: every delivered clip is the same pre-generated LTX-Video clip (see its provenance). Nothing was generated for this batch.",
+          "Demo provider: clips are pre-generated LTX-Video clips (see their provenance), reused in turn. Nothing was generated for this batch.",
         delivered_clips: registered.filter((r) => r.delivered).map((r) => r.clip),
         lost_clip: lost + 1,
         never_rendered_clips: Array.from({ length: failed }, (_, k) => produced + k + 1),

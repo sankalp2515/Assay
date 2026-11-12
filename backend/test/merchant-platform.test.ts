@@ -689,3 +689,109 @@ test("dashboard names an unreadable source instead of showing zero money", async
     await h.close();
   }
 });
+
+test("Replicate connector: signed completion webhook archives the registered task once", async () => {
+  const { verifyStandardWebhook } = await import("../src/services/connectors.js");
+  const { createHmac } = await import("node:crypto");
+  const secret = "whsec_" + Buffer.from("replicate-test-signing-key-32bytes!!").toString("base64");
+  const sign = (id: string, ts: number, body: string) =>
+    "v1," + createHmac("sha256", Buffer.from(secret.slice(6), "base64")).update(`${id}.${ts}.${body}`).digest("base64");
+  const ts = Math.floor(Date.now() / 1000);
+  assert.equal(verifyStandardWebhook(secret, { id: "m1", timestamp: String(ts), signature: sign("m1", ts, "{}") }, "{}"), true);
+  assert.equal(verifyStandardWebhook(secret, { id: "m1", timestamp: String(ts), signature: sign("m1", ts, "{}") }, "{ }"), false);
+  assert.equal(verifyStandardWebhook(secret, { id: "m1", timestamp: String(ts - 900), signature: sign("m1", ts - 900, "{}") }, "{}"), false);
+
+  const h = await harness();
+  h.contexts.provider.providers = {
+    replicate: {
+      available: true,
+      name: "replicate",
+      lookup: async (task: string) => ({ id: task, status: "SUCCEEDED", output: ["https://replicate.delivery/x/out.mp4"], provider: "replicate" }),
+      submit: async () => {
+        throw new Error("no generation");
+      },
+    },
+  };
+  await withEnv({ REPLICATE_WEBHOOK_SECRET: secret, AUTO_ARCHIVE_TASKS: "false" }, async () => {
+    try {
+      const b = await h.setup(2);
+      const reg = await h.request("/v1/batches/" + b.id + "/tasks", { unit_id: b.units[0]!.id, source: "replicate", provider_task_id: "pred_abc123" });
+      assert.equal(reg.statusCode, 200, reg.body);
+      const conn = (await h.request("/v1/connect/replicate", {})).json<Json>();
+      const url = new URL(String(conn.webhook_url));
+      const body = JSON.stringify({ id: "pred_abc123", status: "succeeded" });
+      const post = (sig: string, id = "msg_1") =>
+        h.apps.commerce.inject({
+          method: "POST",
+          url: url.pathname,
+          headers: { "content-type": "application/json", "webhook-id": id, "webhook-timestamp": String(ts), "webhook-signature": sig },
+          payload: body,
+        });
+      assert.equal((await post("v1,AAAA")).statusCode, 401);
+      const ok = await post(sign("msg_1", ts, body));
+      assert.equal(ok.statusCode, 200, ok.body);
+      assert.equal(ok.json<Json>().matched, true);
+      await post(sign("msg_1", ts, body)); // a retry of the same message
+      const jobs = await h.contexts.commerce.db.tx(h.tenant, (q) =>
+        q.query<{ body: Json }>("SELECT body FROM outbox WHERE path='/internal/tasks/archive'"),
+      );
+      assert.equal(jobs.rows.length, 1);
+      // A prediction nobody registered is acknowledged but changes nothing.
+      const other = JSON.stringify({ id: "pred_unknown", status: "succeeded" });
+      const r = await h.apps.commerce.inject({
+        method: "POST",
+        url: url.pathname,
+        headers: { "content-type": "application/json", "webhook-id": "msg_2", "webhook-timestamp": String(ts), "webhook-signature": sign("msg_2", ts, other) },
+        payload: other,
+      });
+      assert.equal(r.json<Json>().matched, false);
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+test("Assay MCP server: agents can open batches and read evidence, never approve money", async () => {
+  const { createAssayMcp } = await import("../src/mcp/server.js");
+  const { Assay } = await import("../sdk/src/index.js");
+  const { Client } = await import("@modelcontextprotocol/sdk/client/index.js");
+  const { InMemoryTransport } = await import("@modelcontextprotocol/sdk/inMemory.js");
+  const h = await harness();
+  try {
+    await withEnv({ SIGNUP_MODE: "open" }, async () => {
+      const key = String(
+        (await h.apps.commerce.inject({ method: "POST", url: "/v1/signup", payload: { merchant_name: "Agent Studio", email: "agent@studio.example" } })).json<Json>().api_key,
+      );
+      const shim: typeof fetch = async (input, init) => {
+        const u = new URL(String(input));
+        const r = await h.apps.commerce.inject({
+          method: (init?.method ?? "GET") as "GET" | "POST",
+          url: u.pathname + u.search,
+          headers: init?.headers as Record<string, string>,
+          ...(init?.body ? { payload: String(init.body) } : {}),
+        });
+        return new Response(r.body, { status: r.statusCode, headers: { "content-type": "application/json" } });
+      };
+      const server = createAssayMcp(new Assay({ apiKey: key, baseUrl: "http://localhost:4100", fetch: shim }));
+      const [a, b] = InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: "test", version: "1.0.0" });
+      await Promise.all([server.connect(a), client.connect(b)]);
+      const tools = (await client.listTools()).tools.map((t) => t.name);
+      assert.ok(tools.includes("assay_register_task") && tools.includes("assay_timeline"));
+      assert.ok(!tools.some((t) => /approve|refund|cancel|key/.test(t)), tools.join(","));
+      const opened = await client.callTool({
+        name: "assay_open_batch",
+        arguments: { buyer_id: id(), unit_count: 2, unit_price_minor: 700, currency: "EUR", prompt: "Two clips opened by an agent", idempotency_key: "agent-order-0001" },
+      });
+      const batch = JSON.parse((opened.content as { text: string }[])[0]!.text) as Json;
+      assert.equal(batch.currency, "EUR");
+      const got = await client.callTool({ name: "assay_get_batch", arguments: { batch_id: String(batch.id) } });
+      assert.equal(got.isError, undefined);
+      const bad = await client.callTool({ name: "assay_get_batch", arguments: { batch_id: id() } });
+      assert.equal(bad.isError, true);
+      await client.close();
+    });
+  } finally {
+    await h.close();
+  }
+});

@@ -39,13 +39,15 @@
     "smoke:containers": "tsx scripts/smoke-containers.ts",
     "frontend:sandbox": "tsx scripts/frontend-sandbox.ts",
     "postman:run": "tsx scripts/postman-run.ts",
-    "check:kernel": "tsx scripts/check-kernel-playback.ts"
+    "check:kernel": "tsx scripts/check-kernel-playback.ts",
+    "mcp": "tsx src/mcp/server.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.3.14",
     "@fastify/helmet": "13.0.2",
     "@fastify/rate-limit": "10.3.0",
     "@fastify/swagger": "9.5.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@onkernel/sdk": "0.146.0",
     "dotenv": "17.2.3",
     "fastify": "5.12.8",

@@ -77,7 +77,7 @@ export class Assay {
     // output when it finishes, before the provider deletes it.
     registerTask: (
       batchId: string,
-      input: { unit_id: string; source: TaskSource; provider_task_id: string; output_url?: string },
+      input: { unit_id: string; source: TaskSource; provider_task_id: string; output_url?: string; deliver_on_archive?: boolean },
       idempotencyKey: string,
     ) => this.request("POST", "/v1/batches/" + id(batchId) + "/tasks", input, idempotencyKey),
     preserve: (batchId: string, attemptId: string, idempotencyKey: string) =>
@@ -93,6 +93,20 @@ export class Assay {
       this.request("POST", "/v1/batches/" + id(batchId) + "/approve", input, idempotencyKey),
     statement: (batchId: string) => this.request("GET", "/v1/batches/" + id(batchId) + "/statement"),
     disputes: (batchId: string) => this.request("GET", "/v1/batches/" + id(batchId) + "/disputes"),
+    timeline: (batchId: string) => this.request("GET", "/v1/batches/" + id(batchId) + "/timeline"),
+    playback: (batchId: string) => this.request("GET", "/v1/batches/" + id(batchId) + "/playback"),
+    // Normal delivery of an archived clip (no recovery, no AI).
+    deliver: (batchId: string, artifactId: string, idempotencyKey: string) =>
+      this.request("POST", "/v1/batches/" + id(batchId) + "/deliver", { artifact_id: artifactId }, idempotencyKey),
+  };
+
+  readonly operations = {
+    dashboard: (level: "batch" | "clip" = "batch") => this.request("GET", "/v1/operations/dashboard?level=" + level),
+  };
+
+  readonly connect = {
+    // Your Replicate webhook URL: pass it as `webhook` when creating predictions.
+    replicate: (idempotencyKey: string) => this.request("POST", "/v1/connect/replicate", {}, idempotencyKey),
   };
 
   readonly buyerSessions = {

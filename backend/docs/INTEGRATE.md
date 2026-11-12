@@ -113,3 +113,15 @@ Each request has the headers `Assay-Event-Id`, `Assay-Event-Type` and `Assay-Sig
   - Real PayPal partner approval, which a deployment where each merchant connects their own PayPal account needs.
 
   See [product/REAL_USER_READINESS.md](../../product/REAL_USER_READINESS.md).
+
+## Optional: archive the moment Replicate finishes
+
+Set `REPLICATE_WEBHOOK_SECRET`, the default signing secret from `GET https://api.replicate.com/v1/webhooks/default/secret`. Then `POST /v1/connect/replicate` returns your private webhook URL. Pass it as `webhook`, with `webhook_events_filter: ["completed"]`, when you create each prediction, and register the prediction as usual.
+
+- Replicate calls Assay on completion. Assay verifies the Standard Webhooks signature and archives at once.
+- Assay still reads the prediction back with your token before downloading anything.
+- Retried messages are ignored, and predictions you haven't registered are acknowledged with no effect.
+
+## Optional: let an AI agent drive the integration
+
+`npm run mcp` (with `ASSAY_API_KEY` and `ASSAY_BASE_URL`) runs an MCP server. Its tools are account, batches, timeline, statement, dashboard, open a batch and register a task. Use an `integration` key. No tool approves, refunds or cancels.

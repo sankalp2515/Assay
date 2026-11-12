@@ -1,0 +1,21 @@
+{
+  "file": "beach-ltx.mp4",
+  "kind": "real AI-generated video, lightly edited",
+  "generator": "LTX-Video Distilled (Lightricks), public Hugging Face ZeroGPU Space, free tier, no account",
+  "generated_at": "2026-11-12",
+  "prompt": "Slow aerial drone shot of calm turquoise ocean waves rolling onto an empty sandy beach at sunrise, soft golden light, gentle motion, no people, no text, no logos, no boats.",
+  "original": {
+    "width": 1280,
+    "height": 736,
+    "seconds": 4.03,
+    "sha256": "7c74b6941d12db3d9e9d25fcde796719f1f1103704a173a76f829e86c0f7c9b3"
+  },
+  "edit": "Cropped 1216x684 at (32,52) to remove a garbled caption-like artifact the model drew in the top-left corner, scaled to 1280x720, re-encoded H.264 (yuv420p, CRF 20, faststart). No other change.",
+  "published": {
+    "width": 1280,
+    "height": 720,
+    "seconds": 4.03,
+    "sha256": "51fab13b58174565beffe3790fe090f3d358d660066ec4fed784d22f12366d90"
+  },
+  "used_for": "Hosted Sandbox demo provider (DEMO_CLIP_URLS), alternating with lighthouse-ltx.mp4."
+}
