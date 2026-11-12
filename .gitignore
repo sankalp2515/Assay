@@ -40,7 +40,8 @@ backend/docs/FRONTEND_HANDOFF.md
 **/AGENTS.md
 frontend/design-qa.md
 frontend/review/
-frontend/.openai/
+frontend/.openai/*
+!frontend/.openai/hosting.json
 frontend/.taste-skill/
 frontend/.impeccable/
 frontend/public/_ref/
