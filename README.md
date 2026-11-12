@@ -91,7 +91,7 @@ Assay is **not a video generator**. It sits between the generator a business alr
 
 | | |
 |---|---|
-| **Live product (one click)** | **[Open a live PayPal Sandbox workspace](https://assay-34-59-154-73.sslip.io/api/demo-login?as=operator&returnTo=%2F%23%2Fstart)**. It lands on **Start here** in your own isolated workspace (merchant, buyer and data) for 24 hours. From the home page, *Start here* → *Run it live on PayPal Sandbox* does the same. *Open demo* on the home page is the illustrative walkthrough, which needs no account. |
+| **Live product (one click)** | **[Open a live PayPal Sandbox workspace](https://assay-34-59-154-73.sslip.io/api/demo-login?as=operator&returnTo=%2F%23%2Fstart)**. It lands on **Start here** in your own isolated workspace (merchant, buyer and data) for 24 hours. The home page's **Run it live on PayPal Sandbox** button does the same. *Open demo* on the home page is the illustrative walkthrough, which needs no account. |
 | **The guided job** | Start here walks you through agreement → PayPal hold → provider jobs → AI investigation → restore → exact capture → buyer's clips and signed statement. You play both merchant and buyer. |
 | **PayPal approval** | Needs a PayPal Sandbox *personal* test account. Its login is in the Devpost testing instructions. Test money only. |
 | **A verified reference case** | Batch `43b76034-08fa-4dea-959d-94d5e47492d0`: $50 authorization `5VS033985C290321J`, clip 08 restored, one $40 capture `6LH981233Y3805404`, both PayPal webhooks, 8 KERNEL playbacks, signed statement. All in [`hosted-sandbox-run.json`](backend/evidence/hosted-sandbox-run.json). |
