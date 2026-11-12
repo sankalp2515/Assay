@@ -635,3 +635,57 @@ test("timeline and operations dashboard: observed facts and labeled estimates", 
     await h.close();
   }
 });
+
+test("PayPal webhooks find the tenant that created the PayPal resource", async () => {
+  const h = await harness();
+  await withEnv({ MERCHANT_TENANT_ID: id() }, async () => {
+    try {
+      const b = await h.setup(2);
+      await h.seed(b, 2);
+      const s = await h.settle(b);
+      await s.execute();
+      h.paypal.webhookValid = true;
+      const r = await h.apps.payments.inject({
+        method: "POST",
+        url: "/v1/paypal/webhooks",
+        payload: { id: "WH-CAP-1", event_type: "PAYMENT.CAPTURE.COMPLETED", resource: { id: "CAPTURE_FIXTURE" } },
+      });
+      assert.equal(r.statusCode, 200, r.body);
+      assert.equal(r.json<Json>().matched, true);
+      const stored = await h.contexts.payments.db.list<Json>(h.tenant, "webhook");
+      assert.ok(stored.some((w) => w.external_event_id === "WH-CAP-1"));
+      // An id nobody created falls back to the configured tenant and matches nothing.
+      const unknown = await h.apps.payments.inject({
+        method: "POST",
+        url: "/v1/paypal/webhooks",
+        payload: { id: "WH-X-1", event_type: "PAYMENT.CAPTURE.COMPLETED", resource: { id: "NOT_OURS_123" } },
+      });
+      assert.equal(unknown.json<Json>().matched, false);
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+test("dashboard names an unreadable source instead of showing zero money", async () => {
+  const h = await harness();
+  try {
+    const b = await h.setup(2);
+    const original = h.contexts.commerce.call;
+    h.contexts.commerce.call = async (target, path, t, body, key) => {
+      if (target === "payments" && path.startsWith("/internal/batches/")) throw new Error("payments down");
+      return original(target, path, t, body, key);
+    };
+    const row = ((await h.request("/v1/operations/dashboard")).json<Json>().rows as Json[]).find((r) => r.batch_id === b.id)!;
+    assert.ok((row.unavailable as string[]).includes("operations"));
+    assert.equal(row.charged_minor, null);
+    assert.equal(row.authorized_minor, null);
+    const tl = (await h.request("/v1/batches/" + b.id + "/timeline")).json<Json>();
+    assert.ok((tl.unavailable as string[]).includes("authorization"));
+    h.contexts.commerce.call = original;
+    const impact = (await h.request("/v1/operations/impact")).json<Json>();
+    assert.equal(impact.truncated, false);
+  } finally {
+    await h.close();
+  }
+});

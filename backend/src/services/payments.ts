@@ -22,6 +22,7 @@ import { sameMoney, isCurrency, formatMoney, type Currency } from "../domain/mon
 import type { PayOptions } from "../core/context.js";
 import { disputeRoutes, openDispute } from "./disputes.js";
 import { merchantRoutes, merchantFor, tenantForMerchant } from "./merchants.js";
+import { PLATFORM_TENANT } from "../core/tenants.js";
 import {
   deliveryStatement,
   statementNote,
@@ -129,6 +130,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
           payOptions(ctx, order),
         );
         const links = resource.links as Json[] | undefined;
+        await indexPayPalRef(ctx, a.tenant, resource.id);
         return ctx.db.mutate(a.tenant, "order", b.batch_id, async (o) => ({
           ...o,
           state: "CREATED",
@@ -238,6 +240,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
           "authorization_mismatch",
           "Invalid authorization resource",
         );
+        await indexPayPalRef(ctx, a.tenant, auth.id);
         const checked = await paypal.getAuthorization(String(auth.id), o);
         requireThat(
           checked.status === "CREATED" &&
@@ -637,6 +640,7 @@ export function paymentRoutes(app: FastifyInstance, ctx: Context) {
             op.request_key,
             o,
           );
+        await indexPayPalRef(ctx, a.tenant, response.id);
         await ctx.db.mutate<Operation>(
           a.tenant,
           "operation",
@@ -1062,6 +1066,7 @@ export async function reconcile(ctx: Context, tenant: string, key: string) {
         typeof candidates[0]?.id === "string"
       ) {
         const recoveredId = String(candidates[0].id);
+        await indexPayPalRef(ctx, tenant, recoveredId);
         await ctx.db.mutate<Operation>(tenant, "operation", key, async (old) =>
           old.provider_id || old.state === "CONFIRMED"
             ? old
@@ -1167,6 +1172,19 @@ function payOptionsRecord(ctx: Context, r: Json | undefined) {
 async function tenantForEvent(ctx: Context, event: Json) {
   const resource = (event.resource ?? {}) as Json;
   const disputed = (resource.disputed_transactions as Json[] | undefined)?.[0];
+  // A PayPal id this deployment created names its tenant (orders, authorizations,
+  // captures, refunds, and the capture behind a dispute). Read-back still verifies.
+  const related = (resource.supplementary_data as Json | undefined)?.related_ids as Json | undefined;
+  for (const ref of [
+    resource.id,
+    disputed?.seller_transaction_id,
+    related?.capture_id,
+    related?.authorization_id,
+    related?.order_id,
+  ]) {
+    const t = await tenantForPayPalRef(ctx, ref);
+    if (t) return t;
+  }
   const merchant =
     (resource.payee as Json | undefined)?.merchant_id ??
     (disputed?.seller as Json | undefined)?.merchant_id;
@@ -1175,4 +1193,20 @@ async function tenantForEvent(ctx: Context, event: Json) {
     if (connected) return connected;
   }
   return process.env.MERCHANT_TENANT_ID;
+}
+
+// Platform-scope index from a PayPal resource id to the tenant that created it, written
+// only by this service after PayPal returned the id. Never taken from a webhook body.
+async function indexPayPalRef(ctx: Context, tenant: string, ref: unknown) {
+  if (typeof ref !== "string" || !/^[A-Za-z0-9_-]{6,64}$/.test(ref)) return;
+  const key = stableId({ paypal_ref: ref });
+  await ctx.db.tx(PLATFORM_TENANT, async (q) => {
+    const prior = await ctx.db.getIn<Json>(q, PLATFORM_TENANT, "paypal_ref", key, true);
+    if (!prior) await ctx.db.put(q, PLATFORM_TENANT, "paypal_ref", key, { id: key, tenant_id: tenant });
+  });
+}
+async function tenantForPayPalRef(ctx: Context, ref: unknown) {
+  if (typeof ref !== "string" || !/^[A-Za-z0-9_-]{6,64}$/.test(ref)) return undefined;
+  const row = await ctx.db.get<Json>(PLATFORM_TENANT, "paypal_ref", stableId({ paypal_ref: ref }));
+  return typeof row?.tenant_id === "string" ? row.tenant_id : undefined;
 }

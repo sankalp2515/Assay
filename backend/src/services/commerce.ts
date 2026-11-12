@@ -1204,7 +1204,8 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
       }
       return {
         simulated: true,
-        label: "Demo provider: a public test clip stands in for generated video. No real generation ran.",
+        label:
+          "Demo provider: every delivered clip is the same pre-generated LTX-Video clip (see its provenance). Nothing was generated for this batch.",
         delivered_clips: registered.filter((r) => r.delivered).map((r) => r.clip),
         lost_clip: lost + 1,
         never_rendered_clips: Array.from({ length: failed }, (_, k) => produced + k + 1),

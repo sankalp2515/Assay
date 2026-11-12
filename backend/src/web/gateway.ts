@@ -1,7 +1,7 @@
 import Fastify from "fastify";
 import helmet from "@fastify/helmet";
 import rateLimit from "@fastify/rate-limit";
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { resolve, sep, extname } from "node:path";
 import { Readable } from "node:stream";
@@ -130,18 +130,19 @@ export async function createGateway(options: GatewayOptions) {
     const sid = cookies(req.headers.cookie as string)[cookieName];
     if (!sid || !/^[\w-]{43}$/.test(sid)) return null;
     const s = await o.db.get<Json>(o.tenant, "web_session", stableId(sid));
-    const member = s ? o.members[String(s.oidc_subject)] : undefined;
-    if (
-      !s ||
-      s.revoked ||
-      Number(s.expires_at) <= Date.now() ||
-      !member ||
-      member.role !== s.role ||
-      member.subject !== s.subject
-    )
-      return null;
+    if (!s || s.revoked || Number(s.expires_at) <= Date.now()) return null;
+    // A demo session carries its own isolated workspace (tenant, merchant, buyer).
+    if (s.demo === true)
+      return o.demoLogin && typeof s.tenant === "string" && /^[a-f0-9-]{36}$/i.test(s.tenant) ? s : null;
+    const member = o.members[String(s.oidc_subject)];
+    if (!member || member.role !== s.role || member.subject !== s.subject) return null;
     return s;
   }
+  // Hosted Sandbox demo: every visitor gets an isolated workspace, a tenant of their own
+  // with its own merchant and buyer, so one visitor can never see or change another's
+  // batches. It lives 24 hours (pointer cookie); switching role keeps the same workspace.
+  const workspaceCookie = o.localOnly ? "pvd-demo-ws" : "__Host-pvd-demo-ws";
+  const tenantOf = (s: Json) => (typeof s.tenant === "string" ? s.tenant : o.tenant);
   if (o.demoLogin) {
     app.get(
       "/api/demo-login",
@@ -149,15 +150,44 @@ export async function createGateway(options: GatewayOptions) {
       async (req, reply) => {
         const q = req.query as { as?: string; returnTo?: string };
         const role = q.as === "buyer" ? "buyer" : "operator";
-        const entry = Object.entries(o.members).find(([, m]) => m.role === role);
-        if (!entry) return reply.code(404).send({ message: "No demo member for this role" });
-        const [subject, member] = entry;
+        const wsid = cookies(req.headers.cookie as string)[workspaceCookie];
+        let ws =
+          wsid && /^[\w-]{43}$/.test(wsid)
+            ? await o.db.get<Json>(o.tenant, "demo_workspace", stableId(wsid))
+            : null;
+        if (ws && Number(ws.expires_at) <= Date.now()) ws = null;
+        let newWsid: string | undefined;
+        if (!ws) {
+          newWsid = random();
+          const tenant = randomUUID();
+          const operator = randomUUID();
+          const buyer = randomUUID();
+          // Commerce registers the new tenant with every service's worker.
+          const r = await (o.network || fetch)(o.commerceUrl + "/v1/demo/workspace", {
+            method: "POST",
+            redirect: "error",
+            signal: AbortSignal.timeout(20000),
+            headers: {
+              Authorization: "Bearer " + (await token(o.identity, "commerce", tenant, "operator", operator)),
+              "Content-Type": "application/json",
+              "Idempotency-Key": "demo-ws-" + tenant,
+            },
+            body: JSON.stringify({ buyer_id: buyer }),
+          });
+          if (!r.ok) return reply.code(503).send({ message: "The demo workspace could not be created. Try again." });
+          ws = { id: stableId(newWsid), tenant, operator, buyer, expires_at: Date.now() + 24 * 3600_000 };
+          await o.db.create(o.tenant, "demo_workspace", newWsid, ws, ws);
+        }
         const sid = random(),
           csrf = random();
         const record = {
           id: stableId(sid),
-          oidc_subject: subject,
-          ...member,
+          oidc_subject: "demo:" + role,
+          role,
+          subject: role === "buyer" ? ws.buyer : ws.operator,
+          tenant: ws.tenant,
+          buyer_id: ws.buyer,
+          name: role === "buyer" ? "Demo buyer" : "Demo merchant",
           csrf,
           demo: true,
           expires_at: Date.now() + 1800000,
@@ -165,7 +195,10 @@ export async function createGateway(options: GatewayOptions) {
         };
         await o.db.create(o.tenant, "web_session", sid, record, record);
         reply
-          .header("Set-Cookie", cookie(cookieName, sid, 1800))
+          .header("Set-Cookie", [
+            cookie(cookieName, sid, 1800),
+            ...(newWsid ? [cookie(workspaceCookie, newWsid, 24 * 3600)] : []),
+          ])
           .redirect(safeReturn(q.returnTo ?? (role === "buyer" ? "/#/buyer" : "/#/batches")));
       },
     );
@@ -280,7 +313,9 @@ export async function createGateway(options: GatewayOptions) {
     if (s.role !== "operator")
       return reply.code(403).send({ message: "Merchant access required" });
     return {
-      buyers: Object.values(o.members)
+      buyers: s.demo === true
+        ? [{ id: String(s.buyer_id), name: "Demo buyer" }]
+        : Object.values(o.members)
         .filter((m) => m.role === "buyer")
         .map((m) => ({
           id: m.subject,
@@ -367,6 +402,13 @@ export async function createGateway(options: GatewayOptions) {
       )
         return reply.code(404).send({ message: "Route not found" });
       let authorization: string;
+      // Demo sessions get the walkthrough only: no payment controls, keys or account links.
+      if (
+        s.demo === true &&
+        p.service === "commerce" &&
+        /^\/v1\/(controls|api-keys|merchant|buyer-sessions)(\/|$)/.test(path)
+      )
+        return reply.code(403).send({ message: "Not available in the Sandbox demo" });
       if (p.service === "delivery") {
         if (
           req.method !== "GET" ||
@@ -380,7 +422,7 @@ export async function createGateway(options: GatewayOptions) {
             "delivery",
           );
           if (
-            actor.tenant !== o.tenant ||
+            actor.tenant !== tenantOf(s) ||
             (s.role === "buyer" && actor.subject !== s.subject)
           )
             throw Error();
@@ -394,7 +436,7 @@ export async function createGateway(options: GatewayOptions) {
           (await token(
             o.identity,
             "commerce",
-            o.tenant,
+            tenantOf(s),
             String(s.role),
             String(s.subject),
           ));

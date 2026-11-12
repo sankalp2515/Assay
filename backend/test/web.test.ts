@@ -175,7 +175,7 @@ test("gateway binds sessions to verified membership, rejects CSRF and role forge
     await h.close();
   }
 });
-test("demo login is off by default and, when on, signs in as the configured Sandbox demo member", async () => {
+test("demo login is off by default and refuses when no workspace can be created", async () => {
   const h = await harness(),
     db = await embedded();
   await db.migrate("commerce");
@@ -201,15 +201,10 @@ test("demo login is off by default and, when on, signs in as the configured Sand
     const csp = String((await on.inject({ url: "/api/session" })).headers["content-security-policy"]);
     assert.match(csp, /script-src 'self' https:\/\/www\.paypal\.com https:\/\/www\.sandbox\.paypal\.com/);
     assert.match(csp, /frame-src https:\/\/www\.paypal\.com/);
+    // Without a reachable Commerce the workspace cannot be created: refused, no session.
     const r = await on.inject({ url: "/api/demo-login?as=buyer&returnTo=https://evil.example" });
-    assert.equal(r.statusCode, 302);
-    assert.equal(r.headers.location, "/#/batches");
-    const cookie = String(r.headers["set-cookie"]).split(";")[0]!;
-    assert.match(String(r.headers["set-cookie"]), /HttpOnly; SameSite=Lax; Max-Age=1800; Secure/);
-    const s = (await on.inject({ url: "/api/session", headers: { cookie } })).json<Record<string, unknown>>();
-    assert.equal(s.role, "buyer");
-    assert.equal(s.subject, h.buyer);
-    assert.equal(s.demo, true);
+    assert.equal(r.statusCode, 503);
+    assert.equal(r.headers["set-cookie"], undefined);
   } finally {
     await off.close();
     await on.close();
@@ -247,6 +242,87 @@ test("CSP allows exactly the inline scripts shipped in index.html, by hash", asy
     assert.ok(!csp.includes("unsafe-inline'") || /style-src[^;]*unsafe-inline/.test(csp));
     assert.ok(!/script-src[^;]*unsafe-inline/.test(csp));
   } finally {
+    await app.close();
+    await db.close();
+    await h.close();
+  }
+});
+test("two demo visitors get isolated workspaces and cannot reach controls or keys", async () => {
+  const h = await harness(),
+    db = await embedded();
+  await db.migrate("commerce");
+  process.env.DEMO_WORKSPACES = "true";
+  const app = await createGateway({
+    origin: "https://demo.example",
+    tenant: h.tenant,
+    identity: h.identities.operator,
+    db,
+    demoLogin: true,
+    members: { op: { role: "operator", subject: h.operator } },
+    commerceUrl: "https://commerce.internal",
+    deliveryUrl: "https://delivery.internal",
+    login: { authorization: () => "https://id.example", exchange: async () => "x" },
+    network: async (url, init) => {
+      const u = new URL(String(url));
+      const r = await h.apps.commerce.inject({
+        method: init!.method as "GET" | "POST",
+        url: u.pathname + u.search,
+        headers: init!.headers as Record<string, string>,
+        ...(init!.body ? { payload: String(init!.body) } : {}),
+      });
+      return new Response(r.body, { status: r.statusCode, headers: { "Content-Type": "application/json" } });
+    },
+  });
+  const login = async (as: string, wsCookie?: string) => {
+    const r = await app.inject({ url: "/api/demo-login?as=" + as, headers: wsCookie ? { cookie: wsCookie } : {} });
+    assert.equal(r.statusCode, 302, r.body);
+    const set = ([] as string[]).concat(r.headers["set-cookie"] as string[]);
+    const session = set.find((c) => c.includes("pvd-session"))!.split(";")[0]!;
+    const ws = set.find((c) => c.includes("pvd-demo-ws"))?.split(";")[0];
+    return { session, ws };
+  };
+  try {
+    const a = await login("operator");
+    const b = await login("operator");
+    assert.ok(a.ws && b.ws && a.ws !== b.ws);
+    const sa = (await app.inject({ url: "/api/session", headers: { cookie: a.session } })).json<{ csrf: string; demo: boolean }>();
+    assert.equal(sa.demo, true);
+    const create = await app.inject({
+      method: "POST",
+      url: "/api/commerce/v1/batches",
+      headers: { cookie: a.session, origin: "https://demo.example", "x-csrf-token": sa.csrf, "idempotency-key": "demo-a-batch-1" },
+      payload: {
+        buyer_id: (await app.inject({ url: "/api/directory", headers: { cookie: a.session } })).json<{ buyers: { id: string }[] }>().buyers[0]!.id,
+        unit_count: 2,
+        unit_price_minor: 500,
+        currency: "USD",
+        prompt: "Visitor A's own demo batch",
+      },
+    });
+    assert.equal(create.statusCode, 200, create.body);
+    const batchId = create.json<{ id: string }>().id;
+    // Visitor B sees nothing of A's.
+    const bList = await app.inject({ url: "/api/commerce/v1/batches/" + batchId, headers: { cookie: b.session } });
+    assert.equal(bList.statusCode, 404);
+    // Switching A to the buyer keeps A's workspace; that buyer can read A's batch.
+    const aBuyer = await login("buyer", a.ws);
+    assert.equal(aBuyer.ws, undefined);
+    assert.equal((await app.inject({ url: "/api/commerce/v1/batches/" + batchId, headers: { cookie: aBuyer.session } })).statusCode, 200);
+    // Demo sessions cannot reach payment controls or keys.
+    const sb = (await app.inject({ url: "/api/session", headers: { cookie: b.session } })).json<{ csrf: string }>();
+    for (const path of ["/api/commerce/v1/controls/payments", "/api/commerce/v1/api-keys"]) {
+      const r = await app.inject({
+        method: "POST",
+        url: path,
+        headers: { cookie: b.session, origin: "https://demo.example", "x-csrf-token": sb.csrf, "idempotency-key": "demo-b-ctl-1" },
+        payload: {},
+      });
+      assert.equal(r.statusCode, 403, path);
+    }
+    // The configured merchant tenant is untouched by demo visitors.
+    assert.equal((await h.request("/v1/batches")).json<{ items: unknown[] }>().items.length, 0);
+  } finally {
+    delete process.env.DEMO_WORKSPACES;
     await app.close();
     await db.close();
     await h.close();

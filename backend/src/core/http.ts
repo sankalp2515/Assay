@@ -179,8 +179,9 @@ export async function foundation(ctx: Context) {
       }),
   );
   // Commerce announces a newly signed-up tenant so this service's worker serves it.
-  endpoint(app, ctx, "POST", "/internal/tenants", ["commerce"], undefined, async (actor) => {
-    await registerTenant(ctx, actor.tenant);
+  endpoint(app, ctx, "POST", "/internal/tenants", ["commerce"], undefined, async (actor, raw) => {
+    const e = (raw as { expires_at?: unknown } | undefined)?.expires_at;
+    await registerTenant(ctx, actor.tenant, typeof e === "string" && !Number.isNaN(Date.parse(e)) ? e : undefined);
     return { registered: actor.tenant };
   });
   return app;

@@ -376,6 +376,10 @@ export function experienceRoutes(app: FastifyInstance, ctx: Context) {
         currency: "USD",
         by_currency,
         limit: 5000,
+        records_considered: rows.rows.length,
+        // At the cap these are totals over the first 5,000 records, not lifetime totals.
+        truncated: rows.rows.length >= 5000,
+        basis: "Counts are observed in this merchant's records; re-render cost is an estimate.",
       };
     },
   );

@@ -116,6 +116,37 @@ export function accountRoutes(app: FastifyInstance, ctx: Context) {
       });
     },
   );
+  // Hosted Sandbox demo: the web gateway creates one isolated workspace per visitor.
+  // The caller's own token names the new tenant, so this can only register itself.
+  endpoint(
+    app,
+    ctx,
+    "POST",
+    "/v1/demo/workspace",
+    ["operator"],
+    ["operator"],
+    async (a, raw) => {
+      requireThat(process.env.DEMO_WORKSPACES === "true", "demo_disabled", "Demo workspaces are not enabled here", 404);
+      const expires = new Date(ctx.now() + 24 * 3600_000).toISOString();
+      await registerTenant(ctx, a.tenant, expires);
+      for (const service of ["provider", "delivery", "investigation", "payments"] as const)
+        await ctx.call(service, "/internal/tenants", a.tenant, { expires_at: expires }, "tenant-" + a.tenant);
+      await ctx.db.tx(a.tenant, (q) =>
+        ctx.db.put(q, a.tenant, "account", CURRENT, {
+          id: CURRENT,
+          merchant_name: "Demo merchant (Sandbox)",
+          operator_id: a.subject,
+          buyer_id: (raw as { buyer_id: string }).buyer_id,
+          environment: "sandbox",
+          demo: true,
+          expires_at: expires,
+          created_at: now(),
+        }),
+      );
+      return { tenant_id: a.tenant, expires_at: expires };
+    },
+    z.strictObject({ buyer_id: uuid }),
+  );
   endpoint(app, ctx, "GET", "/v1/account", ["operator"], ["operator", "integration"], async (a) => {
     const acct = await ctx.db.get<Json>(a.tenant, "account", CURRENT);
     return {

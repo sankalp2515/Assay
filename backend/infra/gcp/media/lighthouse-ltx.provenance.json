@@ -1,0 +1,21 @@
+{
+  "file": "lighthouse-ltx.mp4",
+  "kind": "real AI-generated video, lightly edited",
+  "generator": "LTX-Video Distilled (Lightricks), public Hugging Face ZeroGPU Space, free tier, no account",
+  "generated_at": "2026-11-12",
+  "prompt": "A lighthouse on a rocky green headland above a calm blue sea, slow steady camera pan, clear morning sky, seagulls in the distance, clean full frame image with no watermark, no captions, no text, no people.",
+  "original": {
+    "width": 1280,
+    "height": 736,
+    "seconds": 4.03,
+    "sha256": "c1afcdc8005bd2f7b01f3922cb8f86a9aa41642a8c9ce990ae50a68af6ce9294"
+  },
+  "edit": "Cropped 1216x684 at (32,52) to remove a garbled caption-like artifact the model drew in the top-left corner, scaled to 1280x720, re-encoded H.264 (yuv420p, CRF 20, faststart). No other change.",
+  "published": {
+    "width": 1280,
+    "height": 720,
+    "seconds": 4.03,
+    "sha256": "8bb2e2cd26a2357ffbffca6ab0512eff4d1b191836cb87600ae7500af1d5fb3f"
+  },
+  "used_for": "Hosted Sandbox demo provider (DEMO_CLIP_URL). Every simulated delivered clip in a demo batch is this same file."
+}

@@ -163,3 +163,10 @@ Signed-in users can also reach `statements/verify` and `demo/…`.
 - `GET /v1/batches/:id/timeline` (operator) returns `{resources, events, at_risk_unit_ids}`, shaped for a resource scheduler. Each event is `OBSERVED` or `ESTIMATE`.
 - `GET /v1/operations/dashboard?level=batch|clip&limit=` (operator) returns one row per batch or per clip, with money in each row's own currency.
 - Artifacts carry `published_at`.
+
+**Review fixes (12 November).**
+
+- Each hosted demo sign-in gets an isolated workspace (`POST /v1/demo/workspace`, used only by the gateway, behind `DEMO_WORKSPACES=true`). Demo sessions can't reach controls, keys or account links.
+- PayPal webhooks map to the tenant that created the PayPal resource.
+- `GET /v1/operations/dashboard` and `/timeline` list any source they couldn't read in `unavailable`, and its numbers are `null`, never `0`.
+- `/v1/operations/impact` reports `records_considered`, `truncated` and `basis` (observed counts; estimated re-render cost).

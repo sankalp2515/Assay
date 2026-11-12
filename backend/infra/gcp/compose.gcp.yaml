@@ -13,7 +13,9 @@ services:
       # Each demo visitor gets a fresh case: the demo provider reports a public test clip
       # served by this site. Never enable on a deployment with real merchants.
       DEMO_SIMULATOR: ${DEMO_SIMULATOR:-true}
-      DEMO_CLIP_URL: ${DEMO_CLIP_URL:-https://${ASSAY_DOMAIN}/demo/test-clip.mp4}
+      DEMO_WORKSPACES: ${DEMO_WORKSPACES:-true}
+      # A real LTX-Video clip (see gcp/media/lighthouse-ltx.provenance.json).
+      DEMO_CLIP_URL: ${DEMO_CLIP_URL:-https://${ASSAY_DOMAIN}/demo-media/lighthouse-ltx.mp4}
   provider:
     environment:
       REPORTED_OUTPUT_HOSTS: ${ASSAY_DOMAIN}
@@ -74,6 +76,7 @@ services:
     ports: ["80:80", "443:443"]
     volumes:
       - ./gcp/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./gcp/media:/srv/demo-media:ro
       - caddy-data:/data
       - caddy-config:/config
     restart: unless-stopped

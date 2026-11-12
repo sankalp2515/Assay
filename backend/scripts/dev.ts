@@ -91,6 +91,7 @@ const children = services.map((name, index) => {
                   "SIGNUP_INVITE_CODE",
                   "SIGNUP_RATE_PER_HOUR",
                   "DEMO_SIMULATOR",
+                  "DEMO_WORKSPACES",
                   "DEMO_CLIP_URL",
                 ]
               : [];

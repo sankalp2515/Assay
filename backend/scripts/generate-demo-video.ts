@@ -3,8 +3,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 // Public ZeroGPU demo only. This path has no account, payment method, or paid fallback.
 const endpoint =
   "https://lightricks-ltx-video-distilled.hf.space/gradio_api/call/text_to_video";
-const dir = ".local/ltx-distilled";
+// GEN_DIR / GEN_PROMPT allow a new clip without disturbing the first run's records.
+const dir = process.env.GEN_DIR ?? ".local/ltx-distilled";
 const prompt =
+  process.env.GEN_PROMPT ??
   "A tiny blue paper bird glides left to right above a miniature green paper forest. Warm afternoon light, forward tracking shot, smooth motion, no text.";
 await mkdir(dir, { recursive: true });
 

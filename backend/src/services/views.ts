@@ -36,23 +36,26 @@ export function viewRoutes(app: FastifyInstance, ctx: Context) {
   async function gather(tenant: string, batchId: string) {
     const batch = await ctx.db.get<Json>(tenant, "batch", batchId);
     requireThat(batch, "not_found", "Batch not found", 404);
-    const soft = async <T>(f: () => Promise<T>, fallback: T) => {
+    // A read that fails is reported as unavailable, never shown as an empty or zero value.
+    const unavailable: string[] = [];
+    const soft = async <T>(name: string, f: () => Promise<T>, fallback: T) => {
       try {
         return await f();
       } catch {
+        unavailable.push(name);
         return fallback;
       }
     };
     const [attempts, artifacts, auth, ops, disputes, playback, recoveries] = await Promise.all([
-      soft(async () => ((await ctx.call("provider", "/internal/batches/" + batchId + "/attempts", tenant)).attempts as Json[]), []),
-      soft(async () => ((await ctx.call("delivery", "/internal/batches/" + batchId + "/artifacts", tenant)).artifacts as Json[]), []),
-      soft(async () => await ctx.call("payments", "/internal/batches/" + batchId + "/authorization", tenant), null as Json | null),
-      soft(async () => ((await ctx.call("payments", "/internal/batches/" + batchId + "/operations", tenant)).operations as Json[]), []),
-      soft(async () => ((await ctx.call("payments", "/internal/batches/" + batchId + "/disputes", tenant)).disputes as Json[]), []),
-      soft(async () => ((await ctx.call("delivery", "/internal/batches/" + batchId + "/playback", tenant)).probes as Json[]), []),
+      soft("attempts", async () => ((await ctx.call("provider", "/internal/batches/" + batchId + "/attempts", tenant)).attempts as Json[]), []),
+      soft("artifacts", async () => ((await ctx.call("delivery", "/internal/batches/" + batchId + "/artifacts", tenant)).artifacts as Json[]), []),
+      soft("authorization", async () => await ctx.call("payments", "/internal/batches/" + batchId + "/authorization", tenant), null as Json | null),
+      soft("operations", async () => ((await ctx.call("payments", "/internal/batches/" + batchId + "/operations", tenant)).operations as Json[]), []),
+      soft("disputes", async () => ((await ctx.call("payments", "/internal/batches/" + batchId + "/disputes", tenant)).disputes as Json[]), []),
+      soft("playback", async () => ((await ctx.call("delivery", "/internal/batches/" + batchId + "/playback", tenant)).probes as Json[]), []),
       ctx.db.list<Json>(tenant, "recovery", batchId),
     ]);
-    return { batch, attempts, artifacts, auth, ops, disputes, playback, recoveries };
+    return { batch, attempts, artifacts, auth, ops, disputes, playback, recoveries, unavailable };
   }
 
   endpoint(app, ctx, "GET", "/v1/batches/:batch/timeline", ["operator"], ["operator", "integration"], async (a, _b, p) => {
@@ -107,7 +110,16 @@ export function viewRoutes(app: FastifyInstance, ctx: Context) {
         return !archived && keep?.endDate && Date.parse(keep.endDate) > ctx.now();
       })
       .map((u) => u.id);
-    return { batch_id: g.batch.id, currency: g.batch.currency, resources, events, at_risk_unit_ids: at_risk, generated_at: new Date(ctx.now()).toISOString() };
+    return {
+      batch_id: g.batch.id,
+      currency: g.batch.currency,
+      resources,
+      events,
+      at_risk_unit_ids: at_risk,
+      // Sources that could not be read: their events are missing, not absent.
+      unavailable: g.unavailable,
+      generated_at: new Date(ctx.now()).toISOString(),
+    };
   });
 
   // One row per batch (or per clip with ?level=clip) for an operations grid and charts.
@@ -144,22 +156,25 @@ export function viewRoutes(app: FastifyInstance, ctx: Context) {
         continue;
       }
       const delivered = g.artifacts.filter((x) => x.published === true).length;
+      const moneyKnown = !g.unavailable.includes("operations") && !g.unavailable.includes("authorization");
+      const mediaKnown = !g.unavailable.includes("artifacts") && !g.unavailable.includes("attempts");
       rows.push({
+        unavailable: g.unavailable,
         batch_id: b.id,
         title: b.title ?? null,
         created_at: b.created_at,
         state: b.state,
         currency: b.currency,
         clips: units.length,
-        archived: g.artifacts.filter((x) => x.state === "STORED").length,
-        delivered,
-        archived_not_delivered: g.artifacts.filter((x) => x.state === "STORED" && x.published !== true).length,
+        archived: mediaKnown ? g.artifacts.filter((x) => x.state === "STORED").length : null,
+        delivered: mediaKnown ? delivered : null,
+        archived_not_delivered: mediaKnown ? g.artifacts.filter((x) => x.state === "STORED" && x.published !== true).length : null,
         recovered: g.recoveries.length,
-        never_rendered: units.length - g.attempts.length,
-        authorized_minor: g.auth?.state === "AUTHORIZED" ? Number(b.ceiling_minor) : 0,
-        charged_minor: capture ? Number(capture.amount_minor) : 0,
-        not_taken_minor: capture || g.ops.some((o) => o.kind === "VOID" && o.state === "CONFIRMED") ? Number(b.ceiling_minor) - (capture ? Number(capture.amount_minor) : 0) : null,
-        refunded_minor: refunded,
+        never_rendered: mediaKnown ? units.length - g.attempts.length : null,
+        authorized_minor: moneyKnown ? (g.auth?.state === "AUTHORIZED" ? Number(b.ceiling_minor) : 0) : null,
+        charged_minor: moneyKnown ? (capture ? Number(capture.amount_minor) : 0) : null,
+        not_taken_minor: moneyKnown && (capture || g.ops.some((o) => o.kind === "VOID" && o.state === "CONFIRMED")) ? Number(b.ceiling_minor) - (capture ? Number(capture.amount_minor) : 0) : null,
+        refunded_minor: moneyKnown ? refunded : null,
         open_disputes: openDisputes.length,
         next_dispute_deadline: openDisputes.map((d) => d.seller_response_due_date).filter(Boolean).sort()[0] ?? null,
         playback_played: g.playback.filter((x) => x.outcome === "PLAYED").length,
@@ -169,7 +184,7 @@ export function viewRoutes(app: FastifyInstance, ctx: Context) {
     return {
       level: q.level,
       rows,
-      note: "Money is in minor units of each row's currency; never add rows of different currencies.",
+      note: "Money is in minor units of each row's currency; never add rows of different currencies. A null value with a name in `unavailable` means that source could not be read, not zero.",
       generated_at: new Date(ctx.now()).toISOString(),
     };
   });

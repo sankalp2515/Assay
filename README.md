@@ -2,7 +2,7 @@
 
 **Charge only for the AI clips a buyer actually got, and recover the ones that were made but never arrived before anyone pays again.**
 
-AI-video apps lose money twice when a render "fails". They pay the provider again for a video that already exists, or refund a customer for work that was actually done. Assay finds the finished video, proves the buyer can open it, and settles through PayPal for exactly the clips delivered. To assay something is to test it before you pay for it.
+AI-video apps lose money twice when a render "fails". They pay the provider again for a video that already exists, or refund a customer for work that was actually done. Assay finds the finished video, proves the buyer can retrieve it through their own authenticated route, and settles through PayPal for exactly the clips delivered. To assay something is to test it before you pay for it.
 
 ## Why this happens
 
@@ -25,8 +25,18 @@ If an app's callback, worker or download step fails inside that window, a finish
    - "Refund everything" goes to the merchant, not to an automatic action.
 5. The original clip 8 is **restored instead of re-rendered**, and its retrieval by the buyer is verified.
 6. The merchant approves one exact amount, and PayPal **captures $40 once**. A double click does nothing.
-7. The buyer's PayPal record says: *"Charged $40.00 for 8 of 10 clips delivered. $10.00 of your $50.00 authorization was not taken."*
-8. They also get a **signed per-clip statement** that anyone can verify.
+7. The capture carries a per-clip note for the buyer's PayPal record: *"Charged $40.00 for 8 of 10 clips delivered. $10.00 of your $50.00 authorization was not taken."* This is fixture-tested; it hasn't yet been seen in a real Sandbox buyer record.
+8. Separately from PayPal's record, the buyer gets Assay's **signed per-clip statement**, which anyone can verify.
+
+## For judges
+
+- **Live Sandbox:** https://assay-34-59-154-73.sslip.io. Choose **Try as merchant**, then **Start here**. Each visitor gets an isolated demo workspace (its own merchant, buyer and data) for 24 hours. Demo sessions can't reach payment controls or API keys.
+- **Approving the PayPal hold** needs a PayPal Sandbox *personal* test account; its login is in the Devpost testing instructions. Money is Sandbox only.
+- **Clips in the hosted demo:** a demo provider stands in for the video provider, and the screen labels it. Seven clips arrive, clip 8 is archived but undelivered, and clips 9–10 never render.
+- **Merchant API:** the Postman collection is in [backend/docs/postman](backend/docs/postman). The sign-up invite code is in the Devpost testing instructions.
+- **Landing page:** https://assay-sandbox.onrender.com.
+
+What each piece of evidence does and doesn't prove is in the Evidence table below.
 
 ## Try it (no keys, no network, no money)
 
@@ -118,7 +128,7 @@ Why the split is worth it: [ARCHITECTURE.md](backend/docs/ARCHITECTURE.md#why-fi
 
 ## Impact
 
-- **Buyers** pay only for clips they can open, with no credit chasing, and get a statement they can check.
+- **Buyers** pay only for clips verified as retrievable through their own route, with no credit chasing, and get a statement they can check.
 - **Merchants** keep revenue for work that was really done, skip duplicate renders, and get messages answered from records.
 - **Compute:** a recovered clip is one GPU render that never had to run twice.
 
@@ -137,7 +147,7 @@ Why the split is worth it: [ARCHITECTURE.md](backend/docs/ARCHITECTURE.md#why-fi
   Only USD has run on real Sandbox.
 - Signed webhook delivery is implemented and fixture-tested, but not yet received from PayPal (it needs a public HTTPS listener).
 - The production video adapter is Runway, but it is unconfigured. The real clip came from the public LTX demo.
-- Containers run locally; not deployed to the cloud yet. External login (OIDC) is implemented but not exercised.
+- The hosted Sandbox is a single-VM pilot (one e2-medium VM: services, databases and media verifier together). Workers process tenants one at a time, clips are buffered whole (25 MB cap), and cross-database restore and failover are not yet tested. External login (OIDC) is implemented but not exercised; the hosted demo uses isolated demo workspaces instead.
 - Demand evidence is user reports and provider documentation, not merchant interviews. Economics are illustrative.
 
 More: [problem statement](product/PROBLEM_STATEMENT.md) · [PRD](product/PRD.md) · [design](DESIGN.md)
