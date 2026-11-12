@@ -795,3 +795,39 @@ test("Assay MCP server: agents can open batches and read evidence, never approve
     await h.close();
   }
 });
+
+test("demo visitors can bring their own clip links; nobody else can use the trial source", async () => {
+  const h = await harness();
+  try {
+    const b = await h.setup(4);
+    const path = "/v1/demo/batches/" + b.id + "/simulate-provider";
+    await withEnv({ DEMO_SIMULATOR: "true", TRIAL_OUTPUT_HOSTS: "*", DEMO_CLIP_URL: "https://demo.assay.example/x.mp4", REPORTED_OUTPUT_HOSTS: "demo.assay.example" }, async () => {
+      assert.equal((await h.request(path, { clip_urls: ["http://insecure.example/a.mp4"] })).statusCode, 400);
+      const r = await h.request(path, { clip_urls: ["https://cdn.my-video-app.example/clip-1.mp4"] });
+      assert.equal(r.statusCode, 200, r.body);
+      assert.equal(r.json<Json>().clips_from, "visitor-supplied links");
+      const attempts = (await h.contexts.provider.db.list<Json>(h.tenant, "attempt", b.id)) as Json[];
+      assert.ok(attempts.length > 0 && attempts.every((x) => x.source === "trial"));
+      assert.equal((attempts[0]!.resource as Json).evidence, "visitor_supplied_demo_clip");
+    });
+    // The public task intake never accepts "trial".
+    const b2 = await h.setup(1);
+    const pub = await h.request("/v1/batches/" + b2.id + "/tasks", {
+      unit_id: b2.units[0]!.id,
+      source: "trial",
+      provider_task_id: "t1",
+      output_url: "https://cdn.my-video-app.example/clip-1.mp4",
+    });
+    assert.equal(pub.statusCode, 400);
+    // Without the demo flag the trial host check refuses even with "*".
+    const { hostAllowed } = await import("../src/domain/sources.js");
+    await withEnv({ DEMO_SIMULATOR: undefined, TRIAL_OUTPUT_HOSTS: "*" }, async () => {
+      assert.equal(hostAllowed("trial", "cdn.my-video-app.example"), false);
+    });
+    await withEnv({ REPORTED_OUTPUT_HOSTS: "*" }, async () => {
+      assert.equal(hostAllowed("reported", "anything.example"), false);
+    });
+  } finally {
+    await h.close();
+  }
+});

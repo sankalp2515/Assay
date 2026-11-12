@@ -1179,13 +1179,18 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
     "/v1/demo/batches/:batch/simulate-provider",
     ["operator"],
     ["operator"],
-    async (a, _raw, p) => {
+    async (a, raw, p) => {
       requireThat(process.env.DEMO_SIMULATOR === "true", "demo_disabled", "The demo provider is not enabled here", 404);
+      // A visitor may bring their own AI clips: up to three public https links (a Runway,
+      // Higgsfield or Clueso export, say). They replace the pre-generated clips.
+      const own = ((raw ?? {}) as { clip_urls?: string[] }).clip_urls ?? [];
       // One or more pre-generated clips; units take them in turn so clips look distinct.
-      const clips = (process.env.DEMO_CLIP_URLS || process.env.DEMO_CLIP_URL || "")
-        .split(",")
-        .map((u) => u.trim())
-        .filter(Boolean);
+      const clips = own.length
+        ? own
+        : (process.env.DEMO_CLIP_URLS || process.env.DEMO_CLIP_URL || "")
+            .split(",")
+            .map((u) => u.trim())
+            .filter(Boolean);
       requireThat(clips.length > 0 && clips.every((u) => /^https:\/\/\S+$/.test(u)), "demo_disabled", "DEMO_CLIP_URL is not configured", 503);
       const b = await batch(a.tenant, p.batch!);
       requireThat(b.state === "AUTHORIZED", "batch_not_authorized", "Approve the PayPal hold for this batch first");
@@ -1200,7 +1205,7 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
           a,
           {
             unit_id: unit.id,
-            source: "reported",
+            source: own.length ? "trial" : "reported",
             provider_task_id: "demo-" + b.id.slice(0, 8) + "-" + (i + 1),
             output_url: clips[i % clips.length],
             deliver_on_archive: i !== lost,
@@ -1218,8 +1223,12 @@ export function commerceRoutes(app: FastifyInstance, ctx: Context) {
         lost_clip: lost + 1,
         never_rendered_clips: Array.from({ length: failed }, (_, k) => produced + k + 1),
         note: "Archiving runs in the background; refresh the batch in a few seconds.",
+        clips_from: own.length ? "visitor-supplied links" : "pre-generated LTX-Video clips",
       };
     },
+    z.strictObject({
+      clip_urls: z.array(z.string().regex(/^https:\/\/\S+$/).max(2000)).min(1).max(3).optional(),
+    }),
   );
   // Explicit normal delivery of an archived clip (the merchant's pipeline delivered it).
   endpoint(

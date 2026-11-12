@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { Context } from "../core/context.js";
 import { endpoint } from "../core/http.js";
 import { requireThat } from "../core/errors.js";
-import { TASK_SOURCES, outputHosts, providerFor, type TaskSource } from "../domain/sources.js";
+import { TASK_SOURCES, hostAllowed, providerFor, type TaskSource } from "../domain/sources.js";
 import { id, uuid, now, type Json } from "../domain/contracts.js";
 import { z } from "zod";
 export function providerRoutes(app: FastifyInstance, ctx: Context) {
@@ -24,7 +24,8 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
       };
       const replay = await ctx.db.commandResult(a.tenant, "attempt", key, b);
       if (replay) return replay;
-      const reported = b.source === "reported";
+      // A reported task and a demo "trial" clip both arrive with an output URL.
+      const reported = b.source === "reported" || b.source === "trial";
       requireThat(
         !reported || (!!b.provider_task_id && !!b.output_url),
         "reported_task_incomplete",
@@ -45,9 +46,9 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
           host = "";
         }
         requireThat(
-          outputHosts("reported").includes(host),
+          hostAllowed(b.source, host),
           "unsafe_output_origin",
-          "Output host is not in REPORTED_OUTPUT_HOSTS",
+          "Output host is not allowed for this source",
           422,
         );
       } else providerFor(ctx, b.source);
@@ -106,8 +107,8 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
             id: b.provider_task_id!,
             status: "SUCCEEDED",
             output: [b.output_url!],
-            provider: "reported",
-            evidence: "merchant_reported",
+            provider: b.source,
+            evidence: b.source === "trial" ? "visitor_supplied_demo_clip" : "merchant_reported",
           },
         }));
       await ctx.db.mutate(
@@ -193,7 +194,7 @@ export function providerRoutes(app: FastifyInstance, ctx: Context) {
         uuid.parse(p.attempt),
       );
       requireThat(attempt, "not_found", "Attempt not found", 404);
-      if (!attempt.provider_task_id || attempt.source === "reported")
+      if (!attempt.provider_task_id || attempt.source === "reported" || attempt.source === "trial")
         return attempt;
       const resource = await providerFor(
         ctx,

@@ -112,9 +112,10 @@ Each line says what kind of evidence it is.
 | AI reading of buyer messages: Gemini 25/30 vs keyword baseline 15/30, all 30 answered, 0 invalid readings. An earlier run scored 18/30 because 7 cases hit Google outages | `backend/evidence/claim-reading-evaluation.json` | Real Gemini; 30 authored held-out messages; second single run, no variance estimate |
 | AI action choice on structured facts vs rules | `backend/evidence/investigation-evaluation.json` | Real Gemini 17/20, rules 20/20. This is why AI does not decide actions |
 | Concurrency, RLS, money bounds, encrypted restore | `backend/evidence/native-postgres.json` | Native PostgreSQL, local |
-| Full local gate: 72/72 tests (including task intake, auto-archive, signed webhooks, the PayPal return redirect, API keys and scopes, EUR settlement, disputes, merchant PayPal onboarding, GCS storage, Vertex AI and the SDK), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
+| Full local gate: 73/73 tests (including task intake, auto-archive, signed webhooks, the PayPal return redirect, API keys and scopes, EUR settlement, disputes, merchant PayPal onboarding, GCS storage, Vertex AI and the SDK), native PostgreSQL, build | `backend/evidence/local-quality.json` | Local, fixtures |
 | A real cloud browser (KERNEL) fetched a clip over the internet, matched its SHA-256 and played it, with a session replay. Assay uses this as external playback proof for delivered clips | `backend/evidence/kernel-playback.json` | Real KERNEL; public CC0 clip, not yet an Assay-hosted clip |
 | The merchant Postman collection (sign-up, keys, idempotency, scopes, buyer session, PayPal hold, rotation) run headless with Newman: 21 of 21 assertions pass | `backend/evidence/postman-run.json` | Local HTTP; fixture PayPal and AI |
+| PayPal webhook delivered to the hosted service and verified with PayPal's signature API | `backend/evidence/paypal-webhook.json` | Real PayPal Sandbox simulator event; matched no operation |
 | Microservices in Docker: 11 healthy containers, signed cross-service calls, real Gemini via the Investigation container | `backend/evidence/container-smoke.json` | Local Docker, 11 November build; not rerun on the 12 November additions; no PayPal order or generation |
 
 ## Architecture
@@ -147,7 +148,7 @@ Why the split is worth it: [ARCHITECTURE.md](backend/docs/ARCHITECTURE.md#why-fi
   - Vertex AI
 
   Only USD has run on real Sandbox.
-- Signed webhook delivery is implemented and fixture-tested, but not yet received from PayPal (it needs a public HTTPS listener).
+- PayPal webhooks: registered for the hosted URL. PayPal's simulator event reached it and passed PayPal's signature check (`backend/evidence/paypal-webhook.json`). A webhook from a real Sandbox capture through the hosted UI is still to be recorded.
 - The production video adapter is Runway, but it is unconfigured. The real clip came from the public LTX demo.
 - The hosted Sandbox is a single-VM pilot (one e2-medium VM: services, databases and media verifier together). Workers process tenants one at a time, clips are buffered whole (25 MB cap), and cross-database restore and failover are not yet tested. External login (OIDC) is implemented but not exercised; the hosted demo uses isolated demo workspaces instead.
 - Demand evidence is user reports and provider documentation, not merchant interviews. Economics are illustrative.

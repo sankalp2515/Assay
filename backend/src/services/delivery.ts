@@ -158,7 +158,7 @@ export function deliveryRoutes(app: FastifyInstance, ctx: Context) {
         await downloadOutput(
           output[0],
           path,
-          outputHosts(attempt.source as TaskSource | undefined),
+          attempt.source === "trial" && process.env.DEMO_SIMULATOR !== "true" ? [] : outputHosts(attempt.source as TaskSource | undefined),
         );
         const check = await isolatedVerification(path);
         await (ctx.store ?? new LocalStore(ctx.artifactDir)).put(String(record.id), path);

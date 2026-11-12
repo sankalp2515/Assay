@@ -36,7 +36,7 @@ export async function downloadOutput(
       !url.username &&
       !url.password &&
       (!url.port || url.port === "443") &&
-      hosts.includes(url.hostname),
+      (hosts.includes(url.hostname) || hosts.includes("*")),
     "unsafe_output_origin",
     "Provider output origin is not permitted",
     422,

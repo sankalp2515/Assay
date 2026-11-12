@@ -20,6 +20,9 @@ services:
   provider:
     environment:
       REPORTED_OUTPUT_HOSTS: ${ASSAY_DOMAIN}
+      # Demo workspaces only: visitors may bring their own public clip links.
+      DEMO_SIMULATOR: ${DEMO_SIMULATOR:-true}
+      TRIAL_OUTPUT_HOSTS: "*"
   payments:
     environment:
       PAYPAL_RETURN_URL: https://${ASSAY_DOMAIN}/v1/paypal/return
@@ -30,6 +33,8 @@ services:
       ARTIFACT_STORE: gcs
       GCS_BUCKET: ${GCS_BUCKET:?Set GCS_BUCKET}
       REPORTED_OUTPUT_HOSTS: ${ASSAY_DOMAIN}
+      DEMO_SIMULATOR: ${DEMO_SIMULATOR:-true}
+      TRIAL_OUTPUT_HOSTS: "*"
       # KERNEL's browser fetches clips from the public buyer route on this site.
       PLAYBACK_PROBE_ORIGIN: https://${ASSAY_DOMAIN}
   web-db:

@@ -162,7 +162,8 @@
                     "enum": [
                       "runway",
                       "replicate",
-                      "reported"
+                      "reported",
+                      "trial"
                     ]
                   },
                   "output_url": {

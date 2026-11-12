@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-12",
+  "kind": "PayPal Sandbox webhook simulator event delivered to the hosted deployment",
+  "webhook_id": "5T385301XK764952M",
+  "url": "https://assay-34-59-154-73.sslip.io/v1/paypal/webhooks",
+  "event_type": "PAYMENT.CAPTURE.COMPLETED",
+  "simulator_response": 202,
+  "assay_response": 200,
+  "assay_handling_ms": 1393,
+  "signature": "verified by PayPal's verify-webhook-signature API (an unverified event is answered 401)",
+  "matched_operation": false,
+  "limits": "A simulated event carries a sample resource id, so it matched no Assay operation and changed nothing. An event from a real Sandbox capture through the hosted UI is still to be recorded."
+}
