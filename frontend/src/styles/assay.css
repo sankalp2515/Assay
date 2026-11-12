@@ -509,3 +509,5 @@ input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea {
 @media (prefers-reduced-motion: reduce) { .dialog[open] { animation: fade-in 0.15s ease both; } }
 .assay-foot nav { display: flex; flex-wrap: wrap; gap: 6px 20px; }
 .assay-foot { align-items: center; }
+/* PayPal's logo on our blue button: the unmodified mark sits on a white chip so it stays readable. */
+:is(.btn-proof, .primary) .pp-logo { background: #fff; border-radius: 4px; padding: 3px 6px; }
