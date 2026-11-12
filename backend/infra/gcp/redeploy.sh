@@ -12,7 +12,7 @@ cd "$(dirname "$0")/../../.."
 (cd frontend && npx vite build >/dev/null)
 tar -czf "$OUT/assay-update.tgz" .dockerignore backend/src backend/scripts backend/migrations \
   backend/infra backend/package.json backend/package-lock.json backend/tsconfig.json \
-  backend/tsconfig.build.json backend/Dockerfile frontend/dist/client
+  backend/tsconfig.build.json backend/Dockerfile backend/sdk/src frontend/dist/client
 (cd "$OUT" && gcloud compute scp assay-update.tgz "$VM:/tmp/" --zone "$ZONE" --quiet >/dev/null)
-gcloud compute ssh "$VM" --zone "$ZONE" --quiet --command "cd ~/assay && rm -rf frontend/dist/client && tar -xzf /tmp/assay-update.tgz && rm /tmp/assay-update.tgz && cd backend && sudo docker compose --env-file .local/gcp.env -f infra/compose.yaml -f infra/gcp/compose.gcp.yaml up --build -d ${SERVICES:-} 2>&1 | tail -3 && sudo docker ps --format '{{.Names}} {{.Status}}'"
+gcloud compute ssh "$VM" --zone "$ZONE" --quiet --command "cd ~/assay && rm -rf frontend/dist/client && tar -xzf /tmp/assay-update.tgz && rm /tmp/assay-update.tgz && cd backend && sudo docker compose --env-file .local/gcp.env -f infra/compose.yaml -f infra/gcp/compose.gcp.yaml up --build -d ${SERVICES:-} > ~/assay-redeploy.log 2>&1; rc=\$?; tail -3 ~/assay-redeploy.log; if [ \$rc != 0 ]; then echo 'BUILD FAILED:'; grep -nE 'error|ERROR' ~/assay-redeploy.log | tail -8; exit \$rc; fi; sudo docker ps --format '{{.Names}} {{.Status}}'"
 rm -rf "$OUT"
