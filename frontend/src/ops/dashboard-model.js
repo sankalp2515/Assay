@@ -31,8 +31,9 @@ export function dashboardData(batchRows = [], clipRows = []) {
     delivered: r.delivered,
     recovered: r.recovered,
     recoverable: r.archived_not_delivered,
-    noTask: r.never_rendered,
-    undelivered: Math.max(0, r.clips - r.delivered - r.archived_not_delivered),
+    // Both counts are the service's own. Older builds had no no_provider_task; left empty then.
+    noTask: r.no_provider_task ?? null,
+    undelivered: r.never_rendered,
     authorized: major(r.authorized_minor, r.currency),
     charged: major(r.charged_minor, r.currency),
     // Unknown until the delivery is settled; left empty, not shown as zero.

@@ -75,7 +75,7 @@ test("an empty or missing timeline yields an empty schedule", () => {
 });
 
 test("dashboard money uses each currency's own unit and leaves unsettled amounts empty", () => {
-  const base = { clips: 10, delivered: 8, recovered: 1, archived_not_delivered: 0, never_rendered: 0, refunded_minor: 0, open_disputes: 0, playback_played: 0, playback_probed: 0 };
+  const base = { clips: 10, delivered: 8, recovered: 1, archived_not_delivered: 0, never_rendered: 2, no_provider_task: 0, refunded_minor: 0, open_disputes: 0, playback_played: 0, playback_probed: 0 };
   const d = dashboardData(
     [
       { ...base, batch_id: "aaaaaaaa-1", title: null, state: "CLOSED", currency: "USD", authorized_minor: 5000, charged_minor: 4000, not_taken_minor: 1000 },
@@ -97,6 +97,8 @@ test("dashboard money uses each currency's own unit and leaves unsettled amounts
   assert.equal(jpy.notTaken, null);
   assert.equal(jpy.settled, false);
   assert.equal(jpy.undelivered, 2);
+  assert.equal(jpy.noTask, 0);
+  assert.equal(dashboardData([{ ...base, batch_id: "c", currency: "USD", no_provider_task: undefined }]).deliveries[0].noTask, null);
   assert.equal(d.clips[0].outcome, "Recovered, no new render");
   assert.equal(d.clips[0].provider, "not registered");
   assert.equal(d.clips[1].outcome, "Archived, not delivered");

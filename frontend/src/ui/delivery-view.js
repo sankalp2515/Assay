@@ -95,7 +95,7 @@ export function journeySteps(batch, { demoProvider = false, hasTasks = false } =
       ? [{
           key: "provider", who: "merchant", to: `/batches/${id}`, action: "Run the demo provider",
           title: "Run the demo provider",
-          detail: "A public test clip stands in for generated video. Seven clips are delivered, one is archived but lost, two never render.",
+          detail: "A stand-in for your video provider: every delivered clip is the same pre-generated clip. Seven are delivered, one is archived but lost, two never render.",
           done: hasTasks || reached >= 4,
         }]
       : []),
