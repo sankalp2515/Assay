@@ -1,6 +1,9 @@
 # Web image build context (backend/infra/gcp/Dockerfile.web). Secrets and local state stay out.
 **/node_modules
 **/dist
+# The web image ships the frontend built before the image build.
+!frontend/dist
+!frontend/dist/client
 **/.git
 backend/.local
 backend/.env

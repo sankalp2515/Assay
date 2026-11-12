@@ -95,7 +95,7 @@ export async function createGateway(options: GatewayOptions) {
         frameSrc: ["https://www.paypal.com", "https://www.sandbox.paypal.com"],
         childSrc: ["https://www.paypal.com", "https://www.sandbox.paypal.com"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        fontSrc: ["'self'"],
+        fontSrc: ["'self'", "data:"],
         imgSrc: ["'self'", "data:", "blob:", "https://www.paypalobjects.com", "https://t.paypal.com"],
         mediaSrc: ["'self'", "blob:"],
         connectSrc: ["'self'", "https://www.paypal.com", "https://www.sandbox.paypal.com"],

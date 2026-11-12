@@ -170,7 +170,15 @@ export function viewRoutes(app: FastifyInstance, ctx: Context) {
         delivered: mediaKnown ? delivered : null,
         archived_not_delivered: mediaKnown ? g.artifacts.filter((x) => x.state === "STORED" && x.published !== true).length : null,
         recovered: g.recoveries.length,
-        never_rendered: mediaKnown ? units.length - g.attempts.length : null,
+        // No successful provider output and nothing archived: failed tasks count here too.
+        never_rendered: mediaKnown
+          ? units.filter(
+              (u) =>
+                !g.attempts.some((x) => x.unit_id === u.id && x.state === "SUCCEEDED") &&
+                !g.artifacts.some((x) => x.unit_id === u.id),
+            ).length
+          : null,
+        no_provider_task: mediaKnown ? units.filter((u) => !g.attempts.some((x) => x.unit_id === u.id)).length : null,
         authorized_minor: moneyKnown ? (g.auth?.state === "AUTHORIZED" ? Number(b.ceiling_minor) : 0) : null,
         charged_minor: moneyKnown ? (capture ? Number(capture.amount_minor) : 0) : null,
         not_taken_minor: moneyKnown && (capture || g.ops.some((o) => o.kind === "VOID" && o.state === "CONFIRMED")) ? Number(b.ceiling_minor) - (capture ? Number(capture.amount_minor) : 0) : null,
