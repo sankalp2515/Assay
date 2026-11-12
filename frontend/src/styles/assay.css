@@ -479,7 +479,7 @@ input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea {
 @media (prefers-reduced-motion: reduce) { .loading-bar span { animation: none; width: 100%; opacity: 0.5; } }
 
 /* Dialogs: eyebrow, serif title, what happens in numbered steps, references in mono. */
-.dialog { padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; border-top: 3px solid var(--proof); }
+.dialog { padding: 0; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
 .dialog > * { margin-inline: 28px; }
 .dialog > .dialog-header { margin: 0; padding: 24px 28px 4px; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
 .dialog-header .eyebrow { margin-bottom: 10px; color: var(--proof); }

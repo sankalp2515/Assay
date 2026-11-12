@@ -76,6 +76,8 @@ function useSequence() {
     // Reading is quick; the break is held long enough to be seen before the recovery.
     const at = [500, 850, 1200, 1550, 1900, 2250, 4300, 5200, 6100];
     const timers = at.map((ms, i) => setTimeout(() => setStep(i + 1), ms));
+    // Plays three times on its own, then rests on the settled state until replayed.
+    if (run < 2) timers.push(setTimeout(() => setRun((n) => n + 1), 13000));
     return () => timers.forEach(clearTimeout);
   }, [run, still]);
   return { step, replay: useCallback(() => setRun((n) => n + 1), []), still };
@@ -155,6 +157,18 @@ function HeroStage({ step }) {
   );
 }
 
+const CAPTIONS = [
+  ["14:02:10", "Opening the six records for order coastal-024."],
+  ["14:02:10", "Agreement: ten clips at $5.00, ceiling $50.00."],
+  ["14:02:41", "PayPal: $50.00 authorized. A hold, not a charge."],
+  ["14:05:18", "Provider: eight tasks completed, two failed."],
+  ["14:05:19", "Archive: eight originals stored with checksums."],
+  ["14:08:20", "Buyer route: clip 08 was never published. The app says “failed”."],
+  ["14:08:20", "No capture is proposed while delivery is broken."],
+  ["14:11:02", "Merchant approves: clip 08 re-linked from the archive. No new render."],
+  ["14:11:04", "Buyer route fetched all eight. Bytes match the archive."],
+  ["14:12:30", "One capture of $40.00. $10.00 is never taken."],
+];
 function HeroLine({ step, replay, still }) {
   const done = step >= LAST;
   const broken = step >= 5 && step < 8;
@@ -167,18 +181,22 @@ function HeroLine({ step, replay, still }) {
           <span aria-hidden="true" />
           {done ? "Delivery verified · charged once" : broken ? "Records disagree" : step >= 8 ? "Delivery verified · settling" : "Reading six records"}
         </p>
+        <p className="hero-caption" key={step}><span className="num">{CAPTIONS[step][0]}</span>{CAPTIONS[step][1]}</p>
         {!still && (
           <button className="btn btn-outline btn-sm" onClick={replay}>
             {done ? <><ArrowCounterClockwiseIcon size={14} aria-hidden="true" />Replay</> : <><ScanIcon size={14} aria-hidden="true" />Start again</>}
           </button>
         )}
       </div>
+      <div className="hero-progress" aria-hidden="true">
+        {CAPTIONS.slice(1).map((_, i) => <span key={i} data-on={step > i || undefined} data-tone={i === 4 || i === 5 ? "broken" : undefined} />)}
+      </div>
       <ol className="hero-line">
         {stations.map((s, i) => (
           <li key={s.key}>
             <span className="hl-node" data-state={s.state} aria-hidden="true">{s.state === "broken" && <span />}</span>
             {i < stations.length - 1 && <span className="hl-link" data-state={link(s, stations[i + 1])} aria-hidden="true" />}
-            <article className="sheet" data-state={s.state}>
+            <article className="sheet" data-state={s.state} data-now={(step === i + 1 || (step === 7 && s.key === "artifact") || (step === 8 && s.key === "delivery") || (step === 9 && s.key === "settlement")) && step < LAST + 1 && !still ? "" : undefined}>
               <div><h3>{s.title}</h3><span className="eyebrow" data-state={s.state}>{s.tag}</span></div>
               <p className="eyebrow">{withPayPal(s.subtitle)}</p>
               <div className="hl-lines"><p className="num">{s.lines[0]}</p><p className="num">{s.lines[1]}</p></div>
@@ -249,11 +267,43 @@ const EVIDENCE = [
   ["The walkthrough on this site", "Illustrative · no services, no money", null],
 ];
 const INCIDENT = BEFORE;
+// From backend/evidence/hosted-sandbox-run.json. PayPal Sandbox, test money.
+const TAPE = [
+  ["paypal.authorization", "$50.00 authorized · 5VS033985C290321J"],
+  ["webhook", "PAYMENT.AUTHORIZATION.CREATED · verified · 200"],
+  ["delivery.restore", "Clip 08 restored from the archive · no new render"],
+  ["kernel.playback", "8 of 8 clips played outside our network · 8 digest matches"],
+  ["paypal.capture", "$40.00 captured once · 6LH981233Y3805404"],
+  ["webhook", "PAYMENT.CAPTURE.COMPLETED · verified · 200"],
+  ["paypal.remainder", "$10.00 never taken · not a refund"],
+  ["statement", "EdDSA signature valid · 8 clips charged"],
+];
 const pad = (n) => String(n).padStart(2, "0");
 
 export function Landing({ openDemo, connect, connectionError, mode, live = false }) {
   useInputMode();
   const seq = useSequence();
+  // Sections fade up once as they are reached. Without the observer nothing is hidden.
+  useEffect(() => {
+    if (!("IntersectionObserver" in window) || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const nodes = [...document.querySelectorAll(".landing .lp-section .lp-wrap > *, .landing .photo-copy, .landing .closing .lp-wrap > *, .landing .steps > li, .landing .reel > li, .landing .quad > div, .landing .controls > li")];
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add("in");
+        io.unobserve(e.target);
+      }),
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
+    );
+    nodes.forEach((n) => {
+      if (n.getBoundingClientRect().top < window.innerHeight) return;
+      const i = n.parentElement ? [...n.parentElement.children].indexOf(n) : 0;
+      n.style.setProperty("--rv-d", `${Math.min(i, 5) * 70}ms`);
+      n.classList.add("rv");
+      io.observe(n);
+    });
+    return () => io.disconnect();
+  }, []);
   useEffect(() => {
     document.title = "Assay · From payment to proof of delivery";
   }, []);
@@ -314,6 +364,19 @@ export function Landing({ openDemo, connect, connectionError, mode, live = false
               <HeroStage step={seq.step} />
             </div>
             <HeroLine {...seq} />
+          </div>
+        </section>
+
+        <section className="tape" aria-label="Records from the hosted Sandbox run on 12 November 2026">
+          <div className="tape-inner">
+            <p className="eyebrow tape-label"><i aria-hidden="true" />Hosted Sandbox run · 12 Nov</p>
+            <div className="tape-track">
+              {[false, true].map((copy) => (
+                <ul key={String(copy)} aria-hidden={copy || undefined}>
+                  {TAPE.map(([k, v]) => <li key={v}><span className="num">{k}</span><b>{v}</b></li>)}
+                </ul>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -575,14 +638,14 @@ export function Landing({ openDemo, connect, connectionError, mode, live = false
 
       <footer className="landing-footer">
         <div className="lp-wrap">
+          <p className="lf-sign">Paid. Made. Delivered. <em>Proven.</em></p>
           <div className="lf-top">
             <div className="lf-brand">
               <Brand />
               <p>Finds paid AI work that was made but never delivered, restores it, and charges once for what arrived.</p>
               <p className="lf-status" data-live={live || undefined}>
-                <span aria-hidden="true" />
-                {live ? "Sandbox is live" : "PayPal Sandbox only"} · last recorded capture 12 Nov 2026 ·{" "}
-                <a href={FILE("backend/evidence/hosted-sandbox-run.json")} target="_blank" rel="noopener noreferrer">record</a>
+                <i aria-hidden="true" />
+                <span>{live ? "Sandbox is live" : "PayPal Sandbox only"} · last recorded capture 12 Nov 2026 · <a href={FILE("backend/evidence/hosted-sandbox-run.json")} target="_blank" rel="noopener noreferrer">record</a></span>
               </p>
             </div>
             <nav aria-label="Product">
@@ -611,16 +674,15 @@ export function Landing({ openDemo, connect, connectionError, mode, live = false
           <div className="lf-built">
             <p className="eyebrow">Built with</p>
             <ul>
-              <li><PayPalLogo size="md" /><span>holds, captures, webhooks</span></li>
-              <li><strong>KERNEL</strong><span>outside playback check</span></li>
-              <li><strong>Postman</strong><span>API collection and runs</span></li>
-              <li><strong>Bryntum</strong><span>recovery window</span></li>
-              <li><strong>AG Grid</strong><span>dashboard</span></li>
-              <li><strong>APIMatic</strong><span>PayPal contract review</span></li>
-              <li><strong>Render</strong><span>static page hosting</span></li>
+              <li><PayPalLogo size="md" /><small>holds, captures, webhooks</small></li>
+              <li><strong>KERNEL</strong><small>outside playback check</small></li>
+              <li><strong>Postman</strong><small>API collection and runs</small></li>
+              <li><strong>Bryntum</strong><small>recovery window</small></li>
+              <li><strong>AG Grid</strong><small>dashboard</small></li>
+              <li><strong>APIMatic</strong><small>PayPal contract review</small></li>
+              <li><strong>Render</strong><small>static page hosting</small></li>
             </ul>
           </div>
-          <p className="lf-sign" aria-hidden="true">Paid. Made. Delivered. <em>Proven.</em></p>
           <div className="lf-base">
             <p className="eyebrow">A PayPal AI Hackathon 2026 entry · test money only · no live payments</p>
             <a href="#/signin">Sign in</a>
