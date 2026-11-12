@@ -154,6 +154,8 @@ export function accountRoutes(app: FastifyInstance, ctx: Context) {
       merchant_name: acct?.merchant_name ?? null,
       environment: "sandbox",
       role: a.role,
+      // The web gateway signs a merchant in with an operator key and needs the operator.
+      ...(a.role === "operator" ? { operator_id: a.subject } : {}),
       currencies: CURRENCIES,
       signup: acct ? "self-serve" : "provisioned",
     };

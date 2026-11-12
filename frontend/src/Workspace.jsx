@@ -11,6 +11,7 @@ const Signup = named(() => import("./start/Start.jsx"), "Signup");
 
 // AG Studio is large; it loads only when the dashboard is opened.
 const Dashboard = lazy(() => import("./ops/Dashboard.jsx"));
+import { SignIn } from "./start/SignIn.jsx";
 import { DEMO_BATCH_ID } from "./demo/simulator.js";
 import {
   currentSession,
@@ -2278,8 +2279,8 @@ export function Workspace() {
     demo: "Illustrative walkthrough",
     fixture: "Test fixtures",
     // A hosted demo sign-in is a shared Sandbox account, not the visitor's own.
-    sandbox: session?.demo ? "Sandbox demo" : "PayPal Sandbox",
-    unverified: session?.demo ? "Sandbox demo · unverified" : "Environment unverified",
+    sandbox: session?.demo && !session?.account ? "Sandbox demo" : "PayPal Sandbox",
+    unverified: session?.demo && !session?.account ? "Sandbox demo · unverified" : "Environment unverified",
   }[envKind];
   async function connect() {
     setConnectionError(null);
@@ -2429,27 +2430,9 @@ export function Workspace() {
       <Page
         eyebrow="Assay · Sign in"
         title={<>Sign in to <em>your workspace.</em></>}
-        description="Your account decides which deliveries you can open and what you can approve."
+        description="Merchants sign in to their own workspace. Trying Assay needs no account, and buyers use the private link their studio sends."
       >
-        <section className="document-panel">
-          <a
-            className="primary flow-button"
-            href={`/api/login?returnTo=${encodeURIComponent(sessionStorage.getItem("pvd-return") || "/#/batches")}`}
-          >
-            Continue with your account
-          </a>
-          {import.meta.env.DEV && (
-            <Actions>
-              <button className="secondary" onClick={connect}>
-                Use local development identities
-              </button>
-            </Actions>
-          )}
-          <p>
-            Buying a delivery? Use the private delivery link your studio
-            sent you.
-          </p>
-        </section>
+<SignIn />
       </Page>
     );
   else if (parts[0] === "privacy")

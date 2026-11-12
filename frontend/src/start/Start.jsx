@@ -7,6 +7,7 @@ import { money } from "../domain.js";
 import { journeySteps, clipLinks } from "../ui/delivery-view.js";
 import "./start.css";
 import { withPayPal } from "../ui/PayPalLogo.jsx";
+import { signInWithKey } from "./SignIn.jsx";
 
 const ENV_COPY = {
   demo: ["Illustrative walkthrough", "Example records answered inside this page. No services, no PayPal, no money."],
@@ -245,7 +246,7 @@ export function Start({ envKind, demo, openDemo, connect, canConnect, demoLogin 
               ))}
             </ol>
             {provider.note && <p className="flow-notice" role="status">{provider.note}</p>}
-            {demoLogin && <p className="start-done">Shared Sandbox demo. You play both sides: buyer steps switch to the demo buyer, merchant steps switch back.</p>}
+            {demoLogin && <p className="start-done">You play both sides: buyer steps switch to your test buyer, merchant steps switch back.</p>}
             {!next && <p className="start-done">This delivery is settled. Start the services again for a fresh one, or pick another delivery above.</p>}
           </>
         )}
@@ -349,7 +350,11 @@ export function Signup({ demo }) {
                   </button>
                 </div>
                 <p className="flow-notice">This key can approve captures. Keep it on your server, in an environment variable. Never put it in a web page or a mobile app.</p>
-                <button className="btn btn-proof" onClick={() => setAccount({ ...account, api_key: null })}>I have stored it</button>
+                <div className="start-key-actions">
+                  <button className="btn btn-proof" onClick={() => signInWithKey(account.api_key).catch((err) => setError(err?.message || "Sign-in failed."))}>Sign in to my workspace</button>
+                  <button className="btn btn-outline" onClick={() => setAccount({ ...account, api_key: null })}>I have stored it</button>
+                </div>
+                {error && <p className="flow-notice" role="alert">{error}</p>}
               </>
             ) : (
               <p className="start-here"><CheckIcon size={14} weight="bold" aria-hidden="true" />The key is no longer shown. If it is lost, create a new key with the API and revoke this one.</p>

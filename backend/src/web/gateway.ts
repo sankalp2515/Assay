@@ -33,6 +33,8 @@ export interface GatewayOptions {
   demoLogin?: boolean;
   // Behind a reverse proxy (Caddy) the client address comes from X-Forwarded-For.
   trustProxy?: boolean;
+  // True when a real identity provider (OIDC) is configured for /api/login.
+  sso?: boolean;
 }
 const random = () => randomBytes(32).toString("base64url");
 const equal = (a: string, b: string) =>
@@ -132,8 +134,10 @@ export async function createGateway(options: GatewayOptions) {
     const s = await o.db.get<Json>(o.tenant, "web_session", stableId(sid));
     if (!s || s.revoked || Number(s.expires_at) <= Date.now()) return null;
     // A demo session carries its own isolated workspace (tenant, merchant, buyer).
+    // A merchant account session (signed in with the account's operator key) also carries
+    // its tenant; it is valid even where visitor demo workspaces are switched off.
     if (s.demo === true)
-      return o.demoLogin && typeof s.tenant === "string" && /^[a-f0-9-]{36}$/i.test(s.tenant) ? s : null;
+      return (o.demoLogin || s.account === true) && typeof s.tenant === "string" && /^[a-f0-9-]{36}$/i.test(s.tenant) ? s : null;
     const member = o.members[String(s.oidc_subject)];
     if (!member || member.role !== s.role || member.subject !== s.subject) return null;
     return s;
@@ -187,9 +191,11 @@ export async function createGateway(options: GatewayOptions) {
           subject: role === "buyer" ? ws.buyer : ws.operator,
           tenant: ws.tenant,
           buyer_id: ws.buyer,
-          name: role === "buyer" ? "Demo buyer" : "Demo merchant",
+          name: role === "buyer" ? (ws.account ? "Test buyer" : "Demo buyer") : ws.account ? String(ws.merchant_name || "Merchant") : "Demo merchant",
           csrf,
           demo: true,
+          // A signed-in merchant's own workspace: the operator keeps full merchant access.
+          ...(ws.account === true && role === "operator" ? { account: true, merchant_name: ws.merchant_name } : {}),
           expires_at: Date.now() + 1800000,
           revoked: false,
         };
@@ -297,7 +303,7 @@ export async function createGateway(options: GatewayOptions) {
       return reply
         .code(401)
         // demo_login tells the page it can offer a one-click PayPal Sandbox workspace.
-        .send({ message: "Sign in to access your deliveries", demo_login: o.demoLogin === true });
+        .send({ message: "Sign in to access your deliveries", demo_login: o.demoLogin === true, sso: o.sso === true });
     return {
       role: s.role,
       subject: s.subject,
@@ -308,7 +314,8 @@ export async function createGateway(options: GatewayOptions) {
       // A short tag for this visitor's demo workspace, so the page never carries a
       // delivery id from one workspace into another.
       ...(s.demo === true ? { workspace: String(tenantOf(s)).slice(0, 8) } : {}),
-      merchant_name: o.merchantName || "Demo merchant (Sandbox)",
+      ...(s.account === true ? { account: true } : {}),
+      merchant_name: s.account === true ? String(s.merchant_name || "Merchant") : o.merchantName || "Demo merchant (Sandbox)",
     };
   });
   app.get("/api/directory", async (req, reply) => {
@@ -342,6 +349,72 @@ export async function createGateway(options: GatewayOptions) {
     reply.header("Set-Cookie", cookie(cookieName, "", 0));
     return { signed_out: true };
   });
+  // Merchant sign-in with the account's operator key (shown once at sign-up). The key is
+  // checked by Commerce and never stored here: the gateway keeps only a cookie session
+  // and a pointer to the merchant's own workspace (its tenant, operator and a test buyer),
+  // so the merchant can play both sides of a Sandbox delivery like a demo visitor.
+  app.post(
+    "/api/account-login",
+    { config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } },
+    async (req, reply) => {
+      if (req.headers.origin !== o.origin)
+        return reply.code(403).send({ message: "Sign in from this site" });
+      const key = String((req.body as Json | undefined)?.api_key ?? "").trim();
+      if (!/^assay_sk_[\w-]{20,200}$/.test(key))
+        return reply.code(400).send({ message: "Paste the operator key from your sign-up (it starts with assay_sk_)." });
+      let account: Json;
+      try {
+        const r = await (o.network || fetch)(o.commerceUrl + "/v1/account", {
+          redirect: "error",
+          signal: AbortSignal.timeout(10000),
+          headers: { Authorization: "Bearer " + key },
+        });
+        if (!r.ok) return reply.code(401).send({ message: "That key was not accepted. Check it, or create an account." });
+        account = (await r.json()) as Json;
+      } catch {
+        return reply.code(503).send({ message: "Sign-in is unavailable right now. Try again." });
+      }
+      const tenant = String(account.tenant_id ?? "");
+      const operator = String(account.operator_id ?? "");
+      if (account.role !== "operator" || !/^[a-f0-9-]{36}$/i.test(tenant) || !/^[a-f0-9-]{36}$/i.test(operator))
+        return reply.code(403).send({ message: "Use an operator key. Integration keys cannot sign in to the workspace." });
+      const merchantName = String(account.merchant_name || "Merchant").slice(0, 80);
+      const wsid = random();
+      const ws = {
+        id: stableId(wsid),
+        tenant,
+        operator,
+        buyer: stableId({ tenant, test_buyer: true }),
+        account: true,
+        merchant_name: merchantName,
+        expires_at: Date.now() + 30 * 24 * 3600_000,
+      };
+      await o.db.create(o.tenant, "demo_workspace", wsid, ws, ws);
+      const sid = random(),
+        csrf = random();
+      const record = {
+        id: stableId(sid),
+        oidc_subject: "account:" + tenant,
+        role: "operator",
+        subject: operator,
+        tenant,
+        buyer_id: ws.buyer,
+        name: merchantName,
+        merchant_name: merchantName,
+        csrf,
+        demo: true,
+        account: true,
+        expires_at: Date.now() + 1800000,
+        revoked: false,
+      };
+      await o.db.create(o.tenant, "web_session", sid, record, record);
+      const prior = await session(req);
+      if (prior)
+        await o.db.mutate(o.tenant, "web_session", String(prior.id), async (row) => ({ ...row, revoked: true }));
+      reply.header("Set-Cookie", [cookie(cookieName, sid, 1800), cookie(workspaceCookie, wsid, 30 * 24 * 3600)]);
+      return { signed_in: true, merchant_name: merchantName, return_to: "/#/start" };
+    },
+  );
   // Public Commerce routes that need no session: the PayPal button configuration, the
   // statement verification keys, and merchant sign-up (Commerce decides whether sign-up
   // is open). Sign-up is same-origin only and limited per visitor here as well.
@@ -409,6 +482,7 @@ export async function createGateway(options: GatewayOptions) {
       // Demo sessions get the walkthrough only: no payment controls, keys or account links.
       if (
         s.demo === true &&
+        s.account !== true &&
         p.service === "commerce" &&
         /^\/v1\/(controls|api-keys|merchant|buyer-sessions)(\/|$)/.test(path)
       )

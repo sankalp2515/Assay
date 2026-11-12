@@ -54,6 +54,7 @@ const app = await createGateway({
   deliveryUrl: env.WEB_DELIVERY_URL || "http://127.0.0.1:4102",
   demoLogin,
   trustProxy: env.WEB_TRUST_PROXY === "true",
+  sso: Boolean(env.WEB_OIDC_ISSUER),
   login: demoLogin && !env.WEB_OIDC_ISSUER
     ? {
         authorization: () => origin + "/#/",

@@ -328,3 +328,70 @@ test("two demo visitors get isolated workspaces and cannot reach controls or key
     await h.close();
   }
 });
+test("a merchant signs up, signs in with the operator key and works in a persistent workspace of their own", async () => {
+  const h = await harness(),
+    db = await embedded();
+  await db.migrate("commerce");
+  process.env.SIGNUP_MODE = "open";
+  const app = await createGateway({
+    origin: "https://demo.example",
+    tenant: h.tenant,
+    identity: h.identities.operator,
+    db,
+    demoLogin: true,
+    members: {},
+    commerceUrl: "https://commerce.internal",
+    deliveryUrl: "https://delivery.internal",
+    login: { authorization: () => "https://id.example", exchange: async () => "x" },
+    network: async (url, init) => {
+      const u = new URL(String(url));
+      const r = await h.apps.commerce.inject({
+        method: ((init?.method as "GET" | "POST") || "GET"),
+        url: u.pathname + u.search,
+        headers: (init?.headers as Record<string, string>) || {},
+        ...(init?.body ? { payload: String(init.body) } : {}),
+      });
+      return new Response(r.body, { status: r.statusCode, headers: { "Content-Type": "application/json" } });
+    },
+  });
+  try {
+    const signup = await app.inject({
+      method: "POST",
+      url: "/api/commerce/v1/signup",
+      headers: { origin: "https://demo.example" },
+      payload: { merchant_name: "Reelhouse Studio", email: "ops@reelhouse.example" },
+    });
+    assert.equal(signup.statusCode, 201, signup.body);
+    const { api_key, tenant_id } = signup.json<{ api_key: string; tenant_id: string }>();
+    // Wrong origin, malformed and unknown keys are refused.
+    assert.equal((await app.inject({ method: "POST", url: "/api/account-login", headers: { origin: "https://evil.example" }, payload: { api_key } })).statusCode, 403);
+    assert.equal((await app.inject({ method: "POST", url: "/api/account-login", headers: { origin: "https://demo.example" }, payload: { api_key: "nope" } })).statusCode, 400);
+    assert.equal((await app.inject({ method: "POST", url: "/api/account-login", headers: { origin: "https://demo.example" }, payload: { api_key: api_key.slice(0, -4) + "AAAA" } })).statusCode, 401);
+    const r = await app.inject({ method: "POST", url: "/api/account-login", headers: { origin: "https://demo.example" }, payload: { api_key } });
+    assert.equal(r.statusCode, 200, r.body);
+    const set = ([] as string[]).concat(r.headers["set-cookie"] as string[]);
+    const cookie = set.find((c) => c.includes("pvd-session"))!.split(";")[0]!;
+    const ws = set.find((c) => c.includes("pvd-demo-ws"))!.split(";")[0]!;
+    const me = (await app.inject({ url: "/api/session", headers: { cookie } })).json<{ account: boolean; merchant_name: string; csrf: string; workspace: string }>();
+    assert.equal(me.account, true);
+    assert.equal(me.merchant_name, "Reelhouse Studio");
+    assert.equal(me.workspace, tenant_id.slice(0, 8));
+    // The merchant's own account, and full merchant access (keys are not blocked as in a demo).
+    const acct = (await app.inject({ url: "/api/commerce/v1/account", headers: { cookie } })).json<{ tenant_id: string }>();
+    assert.equal(acct.tenant_id, tenant_id);
+    const keys = await app.inject({ url: "/api/commerce/v1/api-keys", headers: { cookie } });
+    assert.equal(keys.statusCode, 200, keys.body);
+    // Switching to the test buyer stays in the merchant's workspace.
+    const buyer = await app.inject({ url: "/api/demo-login?as=buyer", headers: { cookie: ws } });
+    assert.equal(buyer.statusCode, 302);
+    const bc = ([] as string[]).concat(buyer.headers["set-cookie"] as string[]).find((c) => c.includes("pvd-session"))!.split(";")[0]!;
+    assert.equal((await app.inject({ url: "/api/session", headers: { cookie: bc } })).json<{ workspace: string; role: string }>().workspace, tenant_id.slice(0, 8));
+    // The 401 for a signed-out visitor says which sign-in options this deployment offers.
+    assert.deepEqual((await app.inject({ url: "/api/session" })).json<{ demo_login: boolean; sso: boolean }>(), { message: "Sign in to access your deliveries", demo_login: true, sso: false });
+  } finally {
+    delete process.env.SIGNUP_MODE;
+    await app.close();
+    await db.close();
+    await h.close();
+  }
+});

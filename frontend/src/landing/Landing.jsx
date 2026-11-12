@@ -684,7 +684,7 @@ export function Landing({ openDemo, connect, connectionError, mode, live = false
             </ul>
           </div>
           <div className="lf-base">
-            <p className="eyebrow">A PayPal AI Hackathon 2026 entry · test money only · no live payments</p>
+            <p className="eyebrow">PayPal Sandbox build · test money only · no live payments</p>
             <a href="#/signin">Sign in</a>
           </div>
         </div>

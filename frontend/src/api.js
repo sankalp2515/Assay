@@ -17,6 +17,23 @@ export function setDemoMode(value) {
 export const isDemoMode = () => demoMode;
 let demoLoginOffered = false;
 export const demoLoginAvailable = () => demoLoginOffered;
+let ssoOffered = false;
+export const ssoAvailable = () => ssoOffered;
+// Merchant sign-in with the account's operator key. The gateway checks it with Commerce,
+// keeps only a cookie session, and opens the merchant's own workspace.
+export async function accountLogin(apiKey) {
+  const res = await fetch("/api/account-login", {
+    method: "POST",
+    cache: "no-store",
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(20000),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_key: apiKey }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(data.message || "Sign-in failed. Try again.", res.status, data.code);
+  return data;
+}
 export const LIVE_DEMO_HREF = `/api/demo-login?as=operator&returnTo=${encodeURIComponent("/#/start")}`;
 export async function currentSession() {
   const res = await fetch("/api/session", {
@@ -26,8 +43,11 @@ export async function currentSession() {
   if (!res.ok || !res.headers.get("Content-Type")?.includes("application/json")) {
     // A signed-out visitor on a hosted Sandbox: the gateway says whether it offers a
     // one-click demo workspace, so the Start page can link straight to it.
-    if (res.status === 401)
-      demoLoginOffered = (await res.json().catch(() => ({}))).demo_login === true;
+    if (res.status === 401) {
+      const info = await res.json().catch(() => ({}));
+      demoLoginOffered = info.demo_login === true;
+      ssoOffered = info.sso === true;
+    }
     return null;
   }
   gateway = await res.json();
