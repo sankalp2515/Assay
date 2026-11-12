@@ -114,3 +114,15 @@ test("own clip links: empty means pre-generated clips, and only one to three htt
   assert.ok(clipLinks("not a link").error);
   assert.ok(clipLinks("https://a.example/1 https://a.example/2 https://a.example/3 https://a.example/4").error);
 });
+
+test("a delivery is still archiving while a task runs or a finished clip has no file, and never on UNKNOWN", async () => {
+  const { stillArchiving } = await import("../src/case/useCase.js");
+  const d = (attempts, artifacts = [], state = "RUNNING") => ({ batch: { state }, artifacts, review: { attempts, artifacts: [] } });
+  assert.equal(stillArchiving(d([{ unit_id: "a", state: "processing" }])), true);
+  assert.equal(stillArchiving(d([{ unit_id: "a", state: "THROTTLED" }])), true);
+  assert.equal(stillArchiving(d([{ unit_id: "a", state: "SUCCEEDED" }])), true);
+  assert.equal(stillArchiving(d([{ unit_id: "a", state: "SUCCEEDED" }], [{ unit_id: "a", state: "COPYING" }])), true);
+  assert.equal(stillArchiving(d([{ unit_id: "a", state: "SUCCEEDED" }], [{ unit_id: "a", state: "STORED" }])), false);
+  assert.equal(stillArchiving(d([{ unit_id: "a", state: "UNKNOWN" }, { unit_id: "b", state: "FAILED" }])), false);
+  assert.equal(stillArchiving(d([{ unit_id: "a", state: "RUNNING" }], [], "CLOSED")), false);
+});

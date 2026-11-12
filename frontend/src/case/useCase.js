@@ -9,18 +9,21 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const HARD = [401, 403, 404];
 // Records that are still moving. While any is present the page rereads itself.
 const MOVING_FILE = ["COPYING", "PENDING", "VALIDATING", "QUEUED", "RESERVED"];
-const MOVING_TASK = ["RUNNING", "PENDING", "SUBMITTED", "QUEUED", "PROCESSING", "REGISTERED"];
+// Provider status strings are copied as the provider sends them (Replicate's are lowercase).
+const MOVING_TASK = ["RUNNING", "PENDING", "SUBMITTED", "QUEUED", "PROCESSING", "REGISTERED", "RESERVED", "DISPATCHING", "THROTTLED", "STARTING"];
+const upper = (v) => String(v || "").toUpperCase();
 const BEFORE_HOLD = ["ACCEPTED", "AWAITING_BUYER_APPROVAL", "AUTHORIZING"];
 
 /** True while a provider task is running or a finished task's file is not archived yet. */
 export function stillArchiving(data) {
   if (!data || data.batch?.state === "CLOSED") return false;
   const files = [...(data.artifacts || []), ...(data.review?.artifacts || [])];
-  if (files.some((a) => MOVING_FILE.includes(a.state))) return true;
+  if (files.some((a) => MOVING_FILE.includes(upper(a.state)))) return true;
   const attempts = data.review?.attempts || [];
-  if (attempts.some((a) => MOVING_TASK.includes(a.state))) return true;
+  // UNKNOWN is deliberately not "moving": it stays unknown until evidence resolves it.
+  if (attempts.some((a) => MOVING_TASK.includes(upper(a.state)))) return true;
   const stored = new Set(files.map((a) => a.unit_id));
-  return attempts.some((a) => a.state === "SUCCEEDED" && !stored.has(a.unit_id));
+  return attempts.some((a) => upper(a.state) === "SUCCEEDED" && !stored.has(a.unit_id));
 }
 
 export function useCase(id, role = "operator") {
